@@ -55,10 +55,10 @@ install:
 
 before_script:
     # The RabbtMQ configuration
-    - rabbitmqctl add_user aiidauser aiidapass123
-    - rabbitmqctl add_vhost aiidavhost
-    - rabbitmqctl set_user_tags aiidauser aiidatag
-    - rabbitmqctl set_permissions -p aiidavhost aiidauser ".*" ".*" ".*"
+    - sudo rabbitmqctl add_user aiidauser aiidapass123
+    - sudo rabbitmqctl add_vhost aiidavhost
+    - sudo rabbitmqctl set_user_tags aiidauser aiidatag
+    - sudo rabbitmqctl set_permissions -p aiidavhost aiidauser ".*" ".*" ".*"
 
     # Here I create the actual DB for submission
     - psql -c "CREATE DATABASE $TEST_AIIDA_BACKEND;" -U postgres
