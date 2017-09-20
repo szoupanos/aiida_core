@@ -27,6 +27,7 @@ addons:
            - texlive-latex-extra
            - dvipng
            - dvidvi
+           - rabbitmq-server
 
 ## Build matrix to test both backends, and the docs
 ## I still let it create the test backend for django also when building the docs
@@ -53,6 +54,12 @@ install:
     - pip install .[REST,docs,atomic_tools,testing]
 
 before_script:
+    # The RabbtMQ configuration
+    - rabbitmqctl add_user aiidauser aiidapass123
+    - rabbitmqctl add_vhost aiidavhost
+    - rabbitmqctl set_user_tags aiidauser aiidatag
+    - rabbitmqctl set_permissions -p aiidavhost aiidauser ".*" ".*" ".*"
+
     # Here I create the actual DB for submission
     - psql -c "CREATE DATABASE $TEST_AIIDA_BACKEND;" -U postgres
     # Here I create the test DB
