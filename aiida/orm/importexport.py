@@ -2363,28 +2363,6 @@ def export_tree(what, folder, also_parents = True, also_calc_outputs=True,
             BACKEND))
 
 
-def get_all_parents_dj(node_pks):
-    """
-    Get all the parents of given nodes
-    :param node_pks: one node pk or an iterable of node pks
-    :return: a list of aiida objects with all the parents of the nodes
-    """
-    from aiida.backends.djsite.db import models
-    
-    try:
-        the_node_pks = list(node_pks)
-    except TypeError:
-        the_node_pks = [node_pks]
-        
-    parents = models.DbNode.objects.none()
-    q_inputs = models.DbNode.aiidaobjects.filter(outputs__pk__in=the_node_pks).distinct()
-    while q_inputs.count() > 0:
-        inputs = list(q_inputs)
-        parents = q_inputs | parents.all()
-        q_inputs = models.DbNode.aiidaobjects.filter(outputs__in=inputs).distinct()        
-    return parents
-
-
 def export_tree_dj(what, folder, also_parents = True, also_calc_outputs=True,
                 allowed_licenses=None, forbidden_licenses=None,
                 silent=False):
@@ -2444,10 +2422,14 @@ def export_tree_dj(what, folder, also_parents = True, also_calc_outputs=True,
 
         if given_nodes:
             # Also add the parents (to any level) to the query
-            given_nodes = list(set(given_nodes +
-                                   list(get_all_parents_dj(given_nodes).values_list('pk', flat=True))))
-            entries_ids_to_add[get_class_string(models.DbNode)] = given_nodes
-
+            # This is done via the ancestor relationship.
+            from aiida.orm.querybuilder import QueryBuilder
+            qb = QueryBuilder()
+            qb.append(Node, tag='low_node',
+                      filters={'id': {'in': given_node_entry_ids}})
+            qb.append(Node, ancestor_of='low_node', project=['id'])
+            entries_ids_to_add[get_class_string(models.DbNode)] = [
+                _ for [_] in qb.all()]
 
     if also_calc_outputs:
         given_nodes = entries_ids_to_add[get_class_string(models.DbNode)]
