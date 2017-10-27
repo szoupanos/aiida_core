@@ -25,6 +25,7 @@ LOG_LEVEL_MAPPING = {
 }
 LOG_LEVELS = LOG_LEVEL_MAPPING.keys()
 
+
 class Work(VerdiCommandWithSubcommands):
     """
     Manage the AiiDA worflow manager

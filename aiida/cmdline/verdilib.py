@@ -55,6 +55,7 @@ from aiida.cmdline.commands.node import Node
 from aiida.cmdline.commands.profile import Profile
 from aiida.cmdline.commands.workflow import Workflow
 from aiida.cmdline.commands.work import Work
+from aiida.cmdline.commands.share import Share
 from aiida.cmdline.commands.comment import Comment
 from aiida.cmdline.commands.shell import Shell
 from aiida.cmdline.commands.restapi import Restapi
