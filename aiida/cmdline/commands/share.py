@@ -100,6 +100,7 @@ def share_push():
     profile name.
     """
     click.echo('command: share push')
+    paramiko_push()
 
 
 @share.command('pull')
@@ -109,3 +110,60 @@ def share_pull():
     specified remote AiiDA instance.
     """
     click.echo('command: share deauthorize')
+
+
+def paramiko_push():
+    # Docs on paramiko:
+    # http://docs.paramiko.org/en/2.0/api/channel.html
+    # there are various notes on how to avoid locking, to choose the parameters,
+    # to be efficient, ...
+    import paramiko
+    import time
+
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    # client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    # Also params here, e.g. key_filename=, timeout=, ...
+    client.connect('ubuntu-aiida-vm1.epfl.ch')
+    # client.connect('localhost')
+    # client.connect('theossrv2.epfl.ch')
+    print "Connected"
+    transport = client.get_transport()
+    print "Transport got"
+    session_channel = transport.open_session()
+    print "Session open"
+
+    session_channel.exec_command(command='cat')
+    print "Connected to 'cat'"
+
+    max_len = 10000
+    num_loops = 1000
+    kbs = num_loops * max_len / 1024.
+
+    print "{} loops with {} bytes = {:.1f} kB".format(num_loops, max_len, kbs)
+
+    t = time.time()
+    for loop in range(num_loops):
+        newstring = ""
+        string = "a" * max_len
+        bytes_sent = session_channel.send(string)
+        assert bytes_sent == len(string), "send:{} vs {}".format(bytes_sent,
+                                                                 len(string))
+        # Note: this might not be the best strategy, it might lock forever, etc.
+        # At least, create the channel with a timeout.
+        # Also to check if this is the right way to use a socket or if there
+        # are risks of blocking
+        while len(newstring) < len(string):
+            newstringpart = session_channel.recv(max_len)
+            newstring += newstringpart
+
+        assert newstring == string, "recv:{} vs {}".format(len(newstring),
+                                                           len(string))
+    tottime = time.time() - t
+    print "Time spent: {} s, throughput: {} kB/s.".format(tottime,
+                                                          kbs / tottime)
+
+    session_channel.close()
+    client.close()
