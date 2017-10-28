@@ -21,8 +21,12 @@ class Share(VerdiCommandWithSubcommands):
 
     def __init__(self):
         self.valid_subcommands = {
-            'sub_com_a': (self.cli, self.complete_none),
-            'user': (self.cli, self.complete_none)
+            # 'sub_com_a': (self.cli, self.complete_none),
+            'user': (self.cli, self.complete_none),
+            'authorize': (self.cli, self.complete_none),
+            'deauthorize': (self.cli, self.complete_none),
+            'push': (self.cli, self.complete_none),
+            'pull': (self.cli, self.complete_none),
         }
 
     def cli(self, *args):
@@ -30,19 +34,78 @@ class Share(VerdiCommandWithSubcommands):
 
 # @share.command('name_of_subcommand', context_settings=CONTEXT_SETTINGS)
 
-@share.command(context_settings=CONTEXT_SETTINGS)
-@click.option('-p', '--past-days', type=int, default=1,
-              help="add a filter to show only workflows created in the past N"
-                   " days")
-@click.option('-a', '--all', 'all_nodes', is_flag=True, help='Return all nodes. Overrides the -l flag')
-@click.option('-l', '--limit', type=int, default=None,
-              help="Limit to this many results")
-def sub_com_a(past_days, all_nodes, limit):
+# @share.command(context_settings=CONTEXT_SETTINGS)
+# @click.option('-p', '--past-days', type=int, default=1,
+#               help="add a filter to show only workflows created in the past N"
+#                    " days")
+# @click.option('-a', '--all', 'all_nodes', is_flag=True, help='Return all nodes. Overrides the -l flag')
+# @click.option('-l', '--limit', type=int, default=None,
+#               help="Limit to this many results")
+# def sub_com_a(past_days, all_nodes, limit):
+#     pass
+
+
+@share.group('user')
+def share_user():
+    """
+    This is the user management command sub-group.
+    """
     pass
 
 
-@share.command(context_settings=CONTEXT_SETTINGS)
-def user():
-    pass
+@share_user.command('add')
+def share_user_add():
+    """
+    Add a sharing AiiDA user.
+    """
+    click.echo('command: share user add')
 
 
+@share_user.command('remove')
+def share_user_remove():
+    """
+    Remove a sharing AiiDA user.
+    """
+    click.echo('command: share user remove')
+
+
+@share_user.command('list')
+def share_user_list():
+    """
+    List the available sharing AiiDA users.
+    """
+    click.echo('command: share user list')
+
+
+@share.command('authorize')
+def share_authorize():
+    """
+    Allow an AiIDA sharing user to read or write to a specific repository.
+    """
+    click.echo('command: share authorize')
+
+
+@share.command('deauthorize')
+def share_deauthorize():
+    """
+    Remove access to a specific repository from a user.
+    """
+    click.echo('command: share deauthorize')
+
+
+@share.command('push')
+def share_push():
+    """
+    Push the local nodes to a remote repository, indicated by the remote
+    profile name.
+    """
+    click.echo('command: share push')
+
+
+@share.command('pull')
+def share_pull():
+    """
+    Pull nodes from the repository related to the remote profile found at the
+    specified remote AiiDA instance.
+    """
+    click.echo('command: share deauthorize')
