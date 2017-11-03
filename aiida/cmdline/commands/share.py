@@ -170,7 +170,8 @@ def paramiko_push_file(filename):
             chunk = f.read(1024)
             if not chunk:
                 break
-                bytes += sys.getsizeof(chunk)
+
+            bytes += sys.getsizeof(chunk)
             session_channel.send(chunk)
     finally:
         f.close()
@@ -178,6 +179,8 @@ def paramiko_push_file(filename):
     tottime = time.time() - t
     print "Time spent: {} s, throughput: {} kB/s.".format(tottime,
                                                           bytes / 1000 * tottime)
+
+    print "------>", session_channel.recv(1024)
 
     session_channel.close()
     client.close()
