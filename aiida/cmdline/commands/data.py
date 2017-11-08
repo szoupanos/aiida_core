@@ -1518,19 +1518,37 @@ class _Cif(VerdiCommandWithSubcommands,
         """
         if not is_dbenv_loaded():
             load_dbenv()
-        from django.db.models import Q
+
+        from aiida.orm.querybuilder import QueryBuilder
         from aiida.backends.utils import get_automatic_user
+        from aiida.orm.user import User
 
-        q_object = None
+        print "self.dataclass ===>", self.dataclass
+
+        q = QueryBuilder()
+        q.append(self.dataclass, project=['*'], tag='data_node')
+
         if args.all_users is False:
-            q_object = Q(user=get_automatic_user())
-        else:
-            q_object = Q()
+            q.append(User, filters={'id': {'==': get_automatic_user().id}},
+                     creator_of='data_node')
 
-        self.query_past_days(q_object, args)
-        self.query_group(q_object, args)
+        print q.all()
 
-        object_list = self.dataclass.query(q_object).distinct().order_by('ctime')
+        object_list = [_ for [_] in q.all()]
+
+        # from django.db.models import Q
+        # from aiida.backends.utils import get_automatic_user
+        #
+        # q_object = None
+        # if args.all_users is False:
+        #     q_object = Q(user=get_automatic_user())
+        # else:
+        #     q_object = Q()
+        #
+        # self.query_past_days(q_object, args)
+        # self.query_group(q_object, args)
+        #
+        # object_list = self.dataclass.query(q_object).distinct().order_by('ctime')
 
         entry_list = []
         for obj in object_list:

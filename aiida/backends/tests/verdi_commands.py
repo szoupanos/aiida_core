@@ -344,3 +344,21 @@ class TestVerdiUserCommands(AiidaTestCase):
             configure, cli_options, catch_exceptions=False)
         self.assertTrue(user_2['email'] in result.output)
         self.assertTrue("is already present" in result.output)
+
+
+class TestVerdiDataCommands(AiidaTestCase):
+
+
+    def test_user_list(self):
+        """
+        verdi user list
+        """
+        from aiida.orm.data.cif import CifData
+        from  aiida.cmdline.commands.data import _Cif
+
+        c1 = CifData()
+        c1.store()
+
+        result = CliRunner().invoke(_Cif.list(), [], catch_exceptions=False)
+        print result.output
+        # self.assertTrue(user_1['email'] in result.output)
