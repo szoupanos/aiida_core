@@ -9,10 +9,10 @@
 ###########################################################################
 
 import click
+import logging
 from aiida.cmdline.commands import share, verdi
 from aiida.cmdline.baseclass import VerdiCommandWithSubcommands
 from aiida.cmdline.commands.work import CONTEXT_SETTINGS
-
 
 class Share(VerdiCommandWithSubcommands):
     """
@@ -20,6 +20,15 @@ class Share(VerdiCommandWithSubcommands):
     """
 
     def __init__(self):
+        # logging.basicConfig(filename='/home/aiida/foo9/sharing_debug.log', level=logging.DEBUG)
+        # FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
+        # logging.basicConfig(format=FORMAT)
+        logging.basicConfig(
+            filename='/home/aiida/foo9/sharing_debug.log',
+            format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+            datefmt='%d-%m-%Y:%H:%M:%S',
+            level=logging.DEBUG)
+
         self.valid_subcommands = {
             # 'sub_com_a': (self.cli, self.complete_none),
             'user': (self.cli, self.complete_none),
@@ -100,7 +109,7 @@ def share_push():
     Push the local nodes to a remote repository, indicated by the remote
     profile name.
     """
-    click.echo('command: share push')
+    logging.debug('command: share push')
     # paramiko_push()
     paramiko_push_file('/home/aiida/foo9/sample.txt')
 
@@ -122,14 +131,25 @@ def share_handle_push():
     specified remote AiiDA instance.
     """
     import sys
-
-    click.echo('command: share share_accept_push')
+    logging.debug("[share_handle_push] " + 'command: share share_accept_push')
+    # logging.info('So should this')
+    # logging.warning('And this, too')
+    # click.echo('command: share share_accept_push')
 
     while True:
-        chunk = sys.stdin.read(1024)
+        # chunk = sys.stdin.read(1024)
+        chunk = sys.stdin.read(1)
         if not chunk:
             break
-        click.echo(chunk)
+        logging.debug("[share_handle_push] " + "Received " + chunk)
+        logging.debug("[share_handle_push] " + "Sending " + chunk)
+        sys.stdout.write(chunk)
+        logging.debug("[share_handle_push] " + "Flushing output")
+        sys.stdout.flush()
+
+    # sys.stdout.flush()
+    logging.debug("[share_handle_push] " + "Finished while loop")
+
 
 # Here we have to find a way to select the needed ssh key
 def paramiko_push_file(filename):
@@ -154,11 +174,11 @@ def paramiko_push_file(filename):
     # client.connect('ubuntu-aiida-vm1.epfl.ch')
     # client.connect('localhost')
     # client.connect('theossrv2.epfl.ch')
-    print "Connected"
+    logging.debug("[paramiko_push_file] " + "Connected")
     transport = client.get_transport()
-    print "Transport got"
+    logging.debug("[paramiko_push_file] " + "Transport got")
     session_channel = transport.open_session()
-    print "Session open"
+    logging.debug("[paramiko_push_file] " + "Session open")
 
     session_channel.exec_command(command='cat')
 
@@ -172,18 +192,23 @@ def paramiko_push_file(filename):
                 break
 
             bytes += sys.getsizeof(chunk)
+            logging.debug("[paramiko_push_file] " + "Sending: " + chunk)
             session_channel.send(chunk)
     finally:
+        logging.debug("[paramiko_push_file] " + "Sending finished, closing file")
         f.close()
 
     tottime = time.time() - t
-    print "Time spent: {} s, throughput: {} kB/s.".format(tottime,
-                                                          bytes / 1000 * tottime)
+    logging.debug("[paramiko_push_file] " + "Time spent: {} s, throughput: {} kB/s.".format(
+        tottime, bytes / 1000 * tottime))
 
-    print "------>", session_channel.recv(1024)
+    logging.debug("[paramiko_push_file] " + "Printing what I received")
+    logging.debug("[paramiko_push_file] " + session_channel.recv(1024))
 
+    logging.debug("[paramiko_push_file] " + "Closing chanel")
     session_channel.close()
     client.close()
+    logging.debug("[paramiko_push_file] " + "Exiting")
 
 
 def paramiko_push():
