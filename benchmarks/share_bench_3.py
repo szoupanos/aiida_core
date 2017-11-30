@@ -10,23 +10,24 @@
 
 from aiida.orm.querybuilder import QueryBuilder
 from aiida.orm.node import Node
-import time
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 import time
-import logging
 import os
 
-# logging.basicConfig()
-# logger = logging.getLogger("myapp.sqltime")
-# logger.setLevel(logging.DEBUG)
+# This is a secondary approach for calculating the UUIDs of the nodes to be
+# sent to the receiver side.
+#
+# Let TS be the set of UUIDs sent by the sender and DB the set of UUIDs that
+# are at the receiver side.
+#
+# The set calculated by SQLA is the B = DB - TS
+# At Python level we calculate the A = DB - B and finally the C = TS - A
 
 @event.listens_for(Engine, "before_cursor_execute")
 def before_cursor_execute(conn, cursor, statement,
                         parameters, context, executemany):
     conn.info.setdefault('query_start_time', []).append(time.time())
-    # logger.debug("Start Query: %s", statement)
-    # print("Start Query: %s", statement)
     print("Start Query")
 
 
@@ -34,8 +35,6 @@ def before_cursor_execute(conn, cursor, statement,
 def after_cursor_execute(conn, cursor, statement,
                         parameters, context, executemany):
     total = time.time() - conn.info['query_start_time'].pop(-1)
-    # logger.debug("Query Complete!")
-    # logger.debug("Total Time: %f", total)
     print("Query Completed!")
     print("==> Query Time (secs): {}".format(total))
 
@@ -83,21 +82,38 @@ for lim in [None, 1000000, 100000, 10000, 1000, 100]:
     print "Read", count_s2, "number of lines"
     print "==> Elapsed time for reading from file (secs)", end_s2 - start_s2
 
-    # Check which the UUIDs exist in the database and get the ones that
+    start_rec = time.time()
+    # Calculate the set B = DB - TS
     start_q2 = time.time()
     qb = QueryBuilder()
     qb.append(Node, filters={'uuid': {'!in': ts}}, project=['uuid'])
-    db_minus_ts = [str(_[0]) for _ in qb.all()]
+    b = set(str(_[0]) for _ in qb.all())
     end_q2 = time.time()
+    print len(b), "B size, where B = DB - TS"
+    print "==> Elapsed time for the calculation of B (secs)", end_q2 - start_q2
 
-    print len(db_minus_ts), "UUIDS that don't exist to the given list " \
-                               "were  found in the database"
-    print "==> Elapsed time for new import check query (secs)", end_q2 - start_q2
+    # Calculate the set DB (the set of UUIDs that exist in the database)
+    start_q3 = time.time()
+    qb = QueryBuilder()
+    qb.append(Node, project=['uuid'])
+    db = set(str(_[0]) for _ in qb.all())
+    end_q3 = time.time()
+    print len(b), "DB size"
+    print "==> Elapsed time for the calculation of DB (secs)", end_q3 - start_q3
 
-    # print "obtained_uuids " + str(obtained_uuids)
-    # print "existing_uuids " + str(existing_uuids)
+    # Calculate the set A = DB - B
+    start_q4 = time.time()
+    a = db - b
+    end_q4 = time.time()
+    print len(b), "A size, where A = DB - B"
+    print "==> Elapsed time for the calculation of A (secs)", end_q4 - start_q4
 
-    intersect  = list(set(ts) - set(db_minus_ts))
-    print "UUIDs that have to be added :" + str(len(intersect))
+    # Calculate the set C = TS - A
+    start_q5 = time.time()
+    c = ts - a
+    end_q5 = time.time()
+    print len(b), "C size, where C = TS - A"
+    print "==> Elapsed time for the calculation of C (secs)", end_q5 - start_q5
 
-
+    end_rec = time.time()
+    print "==> Elapsed time for the receiver queries (secs)", end_rec - start_rec

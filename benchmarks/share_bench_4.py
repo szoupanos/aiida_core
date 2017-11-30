@@ -8,26 +8,28 @@
 # For further information please visit http://www.aiida.net               #
 ###########################################################################
 
+from aiida.backends.sqlalchemy import get_scoped_session
+from aiida.backends.sqlalchemy.models.node import DbNode
 from aiida.orm.querybuilder import QueryBuilder
 from aiida.orm.node import Node
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 import time
+import os
 
-# This is the basic approach for calculating the UUIDs of the nodes to be
+# This is a third approach for calculating the UUIDs of the nodes to be
 # sent to the receiver side.
 #
 # Let TS be the set of UUIDs sent by the sender and DB the set of UUIDs that
 # are at the receiver side.
 #
-# The set calculated by SQLA is the A = DB ∩ TS
-# At Python level we calculate the C = TS - A
+# In this approach we pass to PostgreSQL the calculation of the final set C
+# Where C = TS - DB
 
 @event.listens_for(Engine, "before_cursor_execute")
 def before_cursor_execute(conn, cursor, statement,
                         parameters, context, executemany):
     conn.info.setdefault('query_start_time', []).append(time.time())
-    # print("Start Query: %s", statement)
     print("Start Query")
 
 
@@ -35,13 +37,14 @@ def before_cursor_execute(conn, cursor, statement,
 def after_cursor_execute(conn, cursor, statement,
                         parameters, context, executemany):
     total = time.time() - conn.info['query_start_time'].pop(-1)
-    print("Query Complete!")
+    print("Query Completed!")
     print("==> Query Time (secs): {}".format(total))
 
 
 # Repeat the following experiment for various UUID sizes
-for lim in [100, 1000, 10000, 100000, 1000000, None]:
+# for lim in [100, 1000, 10000, 100000, 1000000, None]:
 # for lim in [100, 1000, 10000]:
+for lim in [None, 1000000, 100000, 10000, 1000, 100]:
     print "<================== Round with limit", lim, "==================>"
     # Get some UUIDs -  This represents the set  of nodes that we
     # plan to send to the receiver
@@ -65,35 +68,31 @@ for lim in [100, 1000, 10000, 100000, 1000000, None]:
     print "Finished writing to file"
     print "Stored", count_s1, "number of lines"
     print "==> Elapsed time for writing to file (secs)", end_s1 - start_s1
+    print "==> File size (bytes): ", os.path.getsize('tmp_uuid_file.txt')
 
     # Retrieve the UUIDs from the file
     print "Reading UUIDs from file"
     start_s2 = time.time()
-    ts = list()
+    ts = set()
     count_s2 = 0
     with open('tmp_uuid_file.txt', 'rb') as input_file:
         for line in input_file:
             # obtained_uuids.append(UUID(line[:-1]))
-            ts.append(line[:-1])
+            ts.add(line[:-1])
             count_s2 += 1
     end_s2 = time.time()
     print "Read", count_s2, "number of lines"
     print "==> Elapsed time for reading from file (secs)", end_s2 - start_s2
 
-    # Check which the UUIDs exist in the database and get the ones that
-    start_q2 = time.time()
-    qb = QueryBuilder()
-    qb.append(Node, filters={'uuid': {'in': ts}}, project=['uuid'])
-    a = [str(_[0]) for _ in qb.all()]
-    end_q2 = time.time()
+    start_rec = time.time()
+    # Calculate the set C = TS - DB
+    start_q3 = time.time()
+    tsq = get_scoped_session().query(DbNode.uuid).filter(DbNode.uuid.in_(ts))
+    dbq = get_scoped_session().query(DbNode.uuid)
+    c = tsq.except_(dbq).all()
+    end_q3 = time.time()
+    print len(b), "C size, where C = TS - A"
+    print "==> Elapsed time for the calculation of C (secs)", end_q3 - start_q3
 
-    print "Found ", len(a), " of the given UUIDs in the database"
-    print "==> Elapsed time for import check query (secs)", end_q2 - start_q2
-
-    # print "obtained_uuids " + str(obtained_uuids)
-    # print "existing_uuids " + str(existing_uuids)
-
-    intersect  = list(set(ts) - set(a))
-    print "Not found UUIDs :" + str(len(intersect))
-
-
+    end_rec = time.time()
+    print "==> Elapsed time for the receiver queries (secs)", end_rec - start_rec
