@@ -11,9 +11,37 @@
 from aiida.orm.querybuilder import QueryBuilder
 from aiida.orm.node import Node
 import time
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import time
+import logging
+
+# logging.basicConfig()
+# logger = logging.getLogger("myapp.sqltime")
+# logger.setLevel(logging.DEBUG)
+
+@event.listens_for(Engine, "before_cursor_execute")
+def before_cursor_execute(conn, cursor, statement,
+                        parameters, context, executemany):
+    conn.info.setdefault('query_start_time', []).append(time.time())
+    # logger.debug("Start Query: %s", statement)
+    # print("Start Query: %s", statement)
+    print("Start Query")
+
+
+@event.listens_for(Engine, "after_cursor_execute")
+def after_cursor_execute(conn, cursor, statement,
+                        parameters, context, executemany):
+    total = time.time() - conn.info['query_start_time'].pop(-1)
+    # logger.debug("Query Complete!")
+    # logger.debug("Total Time: %f", total)
+    print("Query Complete!")
+    print("==> Query Time (secs): {}".format(total))
+
 
 # Repeat the following experiment for various UUID sizes
-for lim in [100, 1000, 10000, 100000, 1000000]:
+for lim in [100, 1000, 10000, 100000, 1000000, None]:
+# for lim in [100, 1000, 10000]:
     print "<================== Round with limit", lim, "==================>"
     # Get some UUIDs -  This represents the set  of nodes that we
     # plan to send to the receiver
