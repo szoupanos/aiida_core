@@ -1,0 +1,114 @@
+<================================ Without index on dbnode.uuid ================================>
+
+(aiidapy)szoupanos@theospc22:/home/szoupanos/aiida/aiida_core$ verdi run share_bench_1.py
+11/23/2017 12:27:04 PM, alembic.runtime.migration: [INFO] Context impl PostgresqlImpl.
+11/23/2017 12:27:04 PM, alembic.runtime.migration: [INFO] Will assume transactional DDL.
+<================== Round with limit 100 ==================>
+Got 100 results
+==> Elapsed time for export query (secs) 0.0424339771271
+Storing UUIDs to the file
+Finished writing to file
+Stored 100 number of lines
+==> Elapsed time for writing to file (secs) 0.0617580413818
+Reading UUIDs from file
+Read 100 number of lines
+==> Elapsed time for reading from file (secs) 0.000168085098267
+Found  100  of the given UUIDs in the database
+==> Elapsed time for import check query (secs) 14.839277029
+Not found UUIDs :0
+<================== Round with limit 1000 ==================>
+Got 1000 results
+==> Elapsed time for export query (secs) 0.020092010498
+Storing UUIDs to the file
+Finished writing to file
+Stored 1000 number of lines
+==> Elapsed time for writing to file (secs) 0.0340039730072
+Reading UUIDs from file
+Read 1000 number of lines
+==> Elapsed time for reading from file (secs) 0.000322103500366
+Found  1000  of the given UUIDs in the database
+==> Elapsed time for import check query (secs) 130.506639004
+Not found UUIDs :0
+<================== Round with limit 10000 ==================>
+Got 10000 results
+==> Elapsed time for export query (secs) 0.123945951462
+Storing UUIDs to the file
+Finished writing to file
+Stored 10000 number of lines
+==> Elapsed time for writing to file (secs) 0.0392279624939
+Reading UUIDs from file
+Read 10000 number of lines
+==> Elapsed time for reading from file (secs) 0.00197291374207
+^C^C^C^C^CTerminated
+
+
+
+<================================ With index on dbnode.uuid ================================>
+(aiidapy)szoupanos@theospc22:/home/szoupanos/aiida/aiida_core$ verdi run share_bench_1.py
+11/23/2017 12:33:45 PM, alembic.runtime.migration: [INFO] Context impl PostgresqlImpl.
+11/23/2017 12:33:45 PM, alembic.runtime.migration: [INFO] Will assume transactional DDL.
+<================== Round with limit 100 ==================>
+Got 100 results
+==> Elapsed time for export query (secs) 0.0428230762482
+Storing UUIDs to the file
+Finished writing to file
+Stored 100 number of lines
+==> Elapsed time for writing to file (secs) 0.00991106033325
+Reading UUIDs from file
+Read 100 number of lines
+==> Elapsed time for reading from file (secs) 0.000131845474243
+Found  100  of the given UUIDs in the database
+==> Elapsed time for import check query (secs) 0.0181269645691
+Not found UUIDs :0
+<================== Round with limit 1000 ==================>
+Got 1000 results
+==> Elapsed time for export query (secs) 0.0163130760193
+Storing UUIDs to the file
+Finished writing to file
+Stored 1000 number of lines
+==> Elapsed time for writing to file (secs) 0.0415980815887
+Reading UUIDs from file
+Read 1000 number of lines
+==> Elapsed time for reading from file (secs) 0.000675916671753
+Found  1000  of the given UUIDs in the database
+==> Elapsed time for import check query (secs) 0.0675480365753
+Not found UUIDs :0
+<================== Round with limit 10000 ==================>
+Got 10000 results
+==> Elapsed time for export query (secs) 0.125140190125
+Storing UUIDs to the file
+Finished writing to file
+Stored 10000 number of lines
+==> Elapsed time for writing to file (secs) 0.0562419891357
+Reading UUIDs from file
+Read 10000 number of lines
+==> Elapsed time for reading from file (secs) 0.00369310379028
+Found  10000  of the given UUIDs in the database
+==> Elapsed time for import check query (secs) 0.460508823395
+Not found UUIDs :0
+<================== Round with limit 100000 ==================>
+Got 100000 results
+==> Elapsed time for export query (secs) 0.970196962357
+Storing UUIDs to the file
+Finished writing to file
+Stored 100000 number of lines
+==> Elapsed time for writing to file (secs) 0.0802800655365
+Reading UUIDs from file
+Read 100000 number of lines
+==> Elapsed time for reading from file (secs) 0.0244359970093
+Found  100000  of the given UUIDs in the database
+==> Elapsed time for import check query (secs) 5.1280040741
+Not found UUIDs :0
+<================== Round with limit 1000000 ==================>
+Got 1000000 results
+==> Elapsed time for export query (secs) 9.30592918396
+Storing UUIDs to the file
+Finished writing to file
+Stored 1000000 number of lines
+==> Elapsed time for writing to file (secs) 0.486342906952
+Reading UUIDs from file
+Read 1000000 number of lines
+==> Elapsed time for reading from file (secs) 0.189723014832
+Found  1000000  of the given UUIDs in the database
+==> Elapsed time for import check query (secs) 54.0703539848
+Not found UUIDs :0

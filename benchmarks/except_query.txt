@@ -1,0 +1,18 @@
+from aiida.backends.sqlalchemy import get_scoped_session
+from aiida.backends.sqlalchemy.models.node import DbNode
+
+q1 = get_scoped_session().query(DbNode)
+q2 = get_scoped_session().query(DbNode)
+
+q1.except_(q2)
+
+========================================================
+
+from aiida.backends.sqlalchemy import get_scoped_session
+from aiida.backends.sqlalchemy.models.node import DbNode
+
+ts = get_scoped_session().query(DbNode.uuid).all()
+tsq = get_scoped_session().query(DbNode.uuid).filter(DbNode.uuid.in_(ts))
+dbq = get_scoped_session().query(DbNode.uuid)
+
+missing_ts = tsq.except_(dbq).all()
