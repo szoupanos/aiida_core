@@ -42,9 +42,9 @@ def after_cursor_execute(conn, cursor, statement,
 
 
 # Repeat the following experiment for various UUID sizes
-# for lim in [100, 1000, 10000, 100000, 1000000, None]:
+for lim in [100, 1000, 10000, 100000, 1000000, None]:
 # for lim in [100, 1000, 10000]:
-for lim in [None, 1000000, 100000, 10000, 1000, 100]:
+# for lim in [None, 1000000, 100000, 10000, 1000, 100]:
     print "<================== Round with limit", lim, "==================>"
     # Get some UUIDs -  This represents the set  of nodes that we
     # plan to send to the receiver
@@ -91,8 +91,10 @@ for lim in [None, 1000000, 100000, 10000, 1000, 100]:
     dbq = get_scoped_session().query(DbNode.uuid)
     c = tsq.except_(dbq).all()
     end_q3 = time.time()
-    print len(b), "C size, where C = TS - A"
+    print len(c), "C size, where C = TS - A"
     print "==> Elapsed time for the calculation of C (secs)", end_q3 - start_q3
 
     end_rec = time.time()
     print "==> Elapsed time for the receiver queries (secs)", end_rec - start_rec
+
+    print "Not found UUIDs :" + str(len(c))

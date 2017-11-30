@@ -8,6 +8,8 @@
 # For further information please visit http://www.aiida.net               #
 ###########################################################################
 
+from aiida.backends.sqlalchemy import get_scoped_session
+from aiida.backends.sqlalchemy.models.node import DbNode
 from aiida.orm.querybuilder import QueryBuilder
 from aiida.orm.node import Node
 from sqlalchemy import event
@@ -15,14 +17,14 @@ from sqlalchemy.engine import Engine
 import time
 import os
 
-# This is a secondary approach for calculating the UUIDs of the nodes to be
+# This is a third approach for calculating the UUIDs of the nodes to be
 # sent to the receiver side.
 #
 # Let TS be the set of UUIDs sent by the sender and DB the set of UUIDs that
 # are at the receiver side.
 #
-# The set calculated by SQLA is the B = DB - TS
-# At Python level we calculate the A = DB - B and finally the C = TS - A
+# In this approach we get from SQLA the DB set and we calculate the C at the
+# Python level, where C = TS - DB
 
 @event.listens_for(Engine, "before_cursor_execute")
 def before_cursor_execute(conn, cursor, statement,
@@ -83,38 +85,16 @@ for lim in [100, 1000, 10000, 100000, 1000000, None]:
     print "==> Elapsed time for reading from file (secs)", end_s2 - start_s2
 
     start_rec = time.time()
-    # Calculate the set B = DB - TS
+    # Get DB from database
     start_q2 = time.time()
-    qb = QueryBuilder()
-    qb.append(Node, filters={'uuid': {'!in': ts}}, project=['uuid'])
-    b = set(str(_[0]) for _ in qb.all())
-    end_q2 = time.time()
-    print len(b), "B size, where B = DB - TS"
-    print "==> Elapsed time for the calculation of B (secs)", end_q2 - start_q2
-
-    # Calculate the set DB (the set of UUIDs that exist in the database)
-    start_q3 = time.time()
     qb = QueryBuilder()
     qb.append(Node, project=['uuid'])
     db = set(str(_[0]) for _ in qb.all())
-    end_q3 = time.time()
-    print len(b), "DB size"
-    print "==> Elapsed time for the calculation of DB (secs)", end_q3 - start_q3
+    end_q2 = time.time()
+    print len(db), "DB size"
+    print "==> Elapsed time for the calculation of DB (secs)", end_q2 - start_q2
 
-    # Calculate the set A = DB - B
-    start_q4 = time.time()
-    a = db - b
-    end_q4 = time.time()
-    print len(b), "A size, where A = DB - B"
-    print "==> Elapsed time for the calculation of A (secs)", end_q4 - start_q4
-
-    # Calculate the set C = TS - A
-    start_q5 = time.time()
-    c = ts - a
-    end_q5 = time.time()
-    print len(b), "C size, where C = TS - A"
-    print "==> Elapsed time for the calculation of C (secs)", end_q5 - start_q5
-
+    c = ts - db
     end_rec = time.time()
     print "==> Elapsed time for the receiver queries (secs)", end_rec - start_rec
 

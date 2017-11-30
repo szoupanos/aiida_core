@@ -1,0 +1,147 @@
+(aiidapy)szoupanos@theospc22:/home/szoupanos/aiida/aiida_core/benchmarks$ verdi -p mounet_sqla_sm run ./share_bench_4.py
+11/30/2017 05:44:04 PM, alembic.runtime.migration: [INFO] Context impl PostgresqlImpl.
+11/30/2017 05:44:04 PM, alembic.runtime.migration: [INFO] Will assume transactional DDL.
+<================== Round with limit 100 ==================>
+Got Start Query
+Query Completed!
+==> Query Time (secs): 0.00205993652344
+100 results
+Start Query
+Query Completed!
+==> Query Time (secs): 0.000519990921021
+==> Elapsed time for export query (secs) 0.046364068985
+Storing UUIDs to the file
+Finished writing to file
+Stored 100 number of lines
+==> Elapsed time for writing to file (secs) 0.0209159851074
+==> File size (bytes):  3700
+Reading UUIDs from file
+Read 100 number of lines
+==> Elapsed time for reading from file (secs) 8.48770141602e-05
+Start Query
+Query Completed!
+==> Query Time (secs): 1.49391794205
+0 C size, where C = TS - A
+==> Elapsed time for the calculation of C (secs) 1.49926400185
+==> Elapsed time for the receiver queries (secs) 1.49930000305
+Not found UUIDs :0
+<================== Round with limit 1000 ==================>
+Got Start Query
+Query Completed!
+==> Query Time (secs): 0.00107097625732
+1000 results
+Start Query
+Query Completed!
+==> Query Time (secs): 0.000173807144165
+==> Elapsed time for export query (secs) 0.0167691707611
+Storing UUIDs to the file
+Finished writing to file
+Stored 1000 number of lines
+==> Elapsed time for writing to file (secs) 0.000684976577759
+==> File size (bytes):  37000
+Reading UUIDs from file
+Read 1000 number of lines
+==> Elapsed time for reading from file (secs) 0.000351905822754
+Start Query
+Query Completed!
+==> Query Time (secs): 1.50162291527
+0 C size, where C = TS - A
+==> Elapsed time for the calculation of C (secs) 1.52045416832
+==> Elapsed time for the receiver queries (secs) 1.5204911232
+Not found UUIDs :0
+<================== Round with limit 10000 ==================>
+Got Start Query
+Query Completed!
+==> Query Time (secs): 0.00914216041565
+10000 results
+Start Query
+Query Completed!
+==> Query Time (secs): 0.000268936157227
+==> Elapsed time for export query (secs) 0.109753847122
+Storing UUIDs to the file
+Finished writing to file
+Stored 10000 number of lines
+==> Elapsed time for writing to file (secs) 0.0280740261078
+==> File size (bytes):  370000
+Reading UUIDs from file
+Read 10000 number of lines
+==> Elapsed time for reading from file (secs) 0.00653886795044
+Start Query
+Query Completed!
+==> Query Time (secs): 1.64939689636
+0 C size, where C = TS - A
+==> Elapsed time for the calculation of C (secs) 1.83988404274
+==> Elapsed time for the receiver queries (secs) 1.83990502357
+Not found UUIDs :0
+<================== Round with limit 100000 ==================>
+Got Start Query
+Query Completed!
+==> Query Time (secs): 0.0761940479279
+100000 results
+Start Query
+Query Completed!
+==> Query Time (secs): 0.000286102294922
+==> Elapsed time for export query (secs) 1.08094191551
+Storing UUIDs to the file
+Finished writing to file
+Stored 100000 number of lines
+==> Elapsed time for writing to file (secs) 0.0443739891052
+==> File size (bytes):  3700000
+Reading UUIDs from file
+Read 100000 number of lines
+==> Elapsed time for reading from file (secs) 0.0251982212067
+Start Query
+Query Completed!
+==> Query Time (secs): 10.9277539253
+0 C size, where C = TS - A
+==> Elapsed time for the calculation of C (secs) 12.7691020966
+==> Elapsed time for the receiver queries (secs) 12.7691371441
+Not found UUIDs :0
+<================== Round with limit 1000000 ==================>
+Got Start Query
+Query Completed!
+==> Query Time (secs): 1.07974505424
+1000000 results
+Start Query
+Query Completed!
+==> Query Time (secs): 0.000323057174683
+==> Elapsed time for export query (secs) 11.0632169247
+Storing UUIDs to the file
+Finished writing to file
+Stored 1000000 number of lines
+==> Elapsed time for writing to file (secs) 0.466126918793
+==> File size (bytes):  37000000
+Reading UUIDs from file
+Read 1000000 number of lines
+==> Elapsed time for reading from file (secs) 0.323923826218
+Start Query
+Query Completed!
+==> Query Time (secs): 33.2400288582
+0 C size, where C = TS - A
+==> Elapsed time for the calculation of C (secs) 55.7517979145
+==> Elapsed time for the receiver queries (secs) 55.751832962
+Not found UUIDs :0
+<================== Round with limit None ==================>
+Got Start Query
+Query Completed!
+==> Query Time (secs): 1.32975196838
+1462993 results
+Start Query
+Query Completed!
+==> Query Time (secs): 0.000293016433716
+==> Elapsed time for export query (secs) 18.1047949791
+Storing UUIDs to the file
+Finished writing to file
+Stored 1462993 number of lines
+==> Elapsed time for writing to file (secs) 0.714671134949
+==> File size (bytes):  54130741
+Reading UUIDs from file
+Read 1462993 number of lines
+==> Elapsed time for reading from file (secs) 0.55383014679
+Start Query
+Query Completed!
+==> Query Time (secs): 47.806055069
+0 C size, where C = TS - A
+==> Elapsed time for the calculation of C (secs) 81.0069720745
+==> Elapsed time for the receiver queries (secs) 81.0070040226
+Not found UUIDs :0
