@@ -139,18 +139,33 @@ def share_handle_push():
     while True:
         logging.debug(
             "[share_handle_push] " + "sys.stdout.closed? " + str(sys.stdout.closed))
-        # chunk = sys.stdin.read(1024)
-        chunk = sys.stdin.read(1)
-        if not chunk:
+        logging.debug("[share_handle_push] " + "Reading message")
+        msg = sys.stdin.read(1024)
+        logging.debug("[share_handle_push] " + "Read" + msg)
+        if msg == "EXIT":
             break
-        logging.debug("[share_handle_push] " + "Received " + chunk)
-        logging.debug("[share_handle_push] " + "Sending " + chunk)
-        sys.stdout.write(chunk)
-        logging.debug("[share_handle_push] " + "Flushing output")
-        sys.stdout.flush()
+
+        if msg == "FILE_SEND":
+            sys.stdout.write("OK")
+            sys.stdout.flush()
+
+            logging.debug("[share_handle_push] " + "Reading the file size")
+            # Read the size of the file
+            file_size = sys.stdin.read(1024)
+
+            bytes_read = 0
+            while bytes_read <= file_size:
+                chunk = sys.stdin.read(1024)
+                bytes_read += len(chunk)
+
+            # Sending OK that the file was read
+            logging.debug("[share_handle_push] " +
+                          "Sending OK that the file was read")
+            sys.stdout.write("OK")
+            sys.stdout.flush()
 
     # sys.stdout.flush()
-    logging.debug("[share_handle_push] " + "Finished while loop")
+    logging.debug("[share_handle_push] " + "Finished while loop. Exiting")
 
 
 # Here we have to find a way to select the needed ssh key
@@ -162,6 +177,7 @@ def paramiko_push_file(filename):
     import paramiko
     import time
     import sys
+    import os
 
     client = paramiko.SSHClient()
     client.load_system_host_keys()
@@ -184,10 +200,38 @@ def paramiko_push_file(filename):
 
     session_channel.exec_command(command='cat')
 
+
+    # sending the command to be executed
+    logging.debug("[paramiko_push_file] " +
+                  "Informing that the command to be executed is a FILE_SEND")
+    session_channel.send("FILE_SEND")
+    # wait for the OK reply
+    logging.debug("[paramiko_push_file] " + "wait for the OK reply")
+    while not session_channel.exit_status_ready():
+        rec_msg = session_channel.recv(1024)
+        logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
+        if rec_msg == "OK":
+            break
+
+    logging.debug("[paramiko_push_file] " + "Proceeding to the file sent")
+
+    file_size = os.path.getsize(filename)
+    logging.debug("[paramiko_push_file] " + "Sending the file size (" +
+                  file_size + "bytes)")
+    session_channel.send(file_size)
+
+    logging.debug("[paramiko_push_file] " + "wait for the OK to send the file")
+    while not session_channel.exit_status_ready():
+        rec_msg = session_channel.recv(1024)
+        logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
+        if rec_msg == "OK":
+            break
+
+    # Proceeding to the file sent
     t = time.time()
     bytes = 0
-    f = open(filename, "rb")
     try:
+        f = open(filename, "rb")
         while True:
             chunk = f.read(1024)
             if not chunk:
@@ -206,11 +250,28 @@ def paramiko_push_file(filename):
     logging.debug("[paramiko_push_file] " + "Time spent: {} s, throughput: {} kB/s.".format(
         tottime, bytes / 1000 * tottime))
 
-    logging.debug("[paramiko_push_file] " + "Receiving data")
+    logging.debug("[paramiko_push_file] " + "wait for the OK that the file "
+                                            "was sent successfully.")
+
     while not session_channel.exit_status_ready():
         rec_msg = session_channel.recv(1024)
-        logging.debug("[paramiko_push_file] " + "Received: " + rec_msg)
+        logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
+        if rec_msg == "OK":
+            break
 
+
+    logging.debug("[paramiko_push_file] " +
+                  "Informing that the command to be executed is an EXIT")
+    session_channel.send("EXIT")
+    # wait for the OK reply
+    logging.debug("[paramiko_push_file] " + "wait for the OK reply")
+    while not session_channel.exit_status_ready():
+        rec_msg = session_channel.recv(1024)
+        logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
+        if rec_msg == "OK":
+            break
+
+    # Closing channels and exiting
     logging.debug("[paramiko_push_file] " + "Closing chanel")
     session_channel.close()
     client.close()
