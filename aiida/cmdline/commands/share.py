@@ -24,7 +24,7 @@ class Share(VerdiCommandWithSubcommands):
         # FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
         # logging.basicConfig(format=FORMAT)
         logging.basicConfig(
-            filename='/home/aiida/foo9/sharing_debug.log',
+            filename='/home/aiida/foo10/sharing_debug.log',
             format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
             datefmt='%d-%m-%Y:%H:%M:%S',
             level=logging.DEBUG)
@@ -137,6 +137,8 @@ def share_handle_push():
     # click.echo('command: share share_accept_push')
 
     while True:
+        logging.debug(
+            "[share_handle_push] " + "sys.stdout.closed? " + str(sys.stdout.closed))
         # chunk = sys.stdin.read(1024)
         chunk = sys.stdin.read(1)
         if not chunk:
@@ -193,7 +195,9 @@ def paramiko_push_file(filename):
 
             bytes += sys.getsizeof(chunk)
             logging.debug("[paramiko_push_file] " + "Sending: " + chunk)
-            session_channel.send(chunk)
+            byte_no = session_channel.send(chunk)
+            logging.debug("[paramiko_push_file] " + "Sent " + str(byte_no)
+                          + " bytes.")
     finally:
         logging.debug("[paramiko_push_file] " + "Sending finished, closing file")
         f.close()
@@ -202,8 +206,10 @@ def paramiko_push_file(filename):
     logging.debug("[paramiko_push_file] " + "Time spent: {} s, throughput: {} kB/s.".format(
         tottime, bytes / 1000 * tottime))
 
-    logging.debug("[paramiko_push_file] " + "Printing what I received")
-    logging.debug("[paramiko_push_file] " + session_channel.recv(1024))
+    logging.debug("[paramiko_push_file] " + "Receiving data")
+    while not session_channel.exit_status_ready():
+        rec_msg = session_channel.recv(1024)
+        logging.debug("[paramiko_push_file] " + "Received: " + rec_msg)
 
     logging.debug("[paramiko_push_file] " + "Closing chanel")
     session_channel.close()
