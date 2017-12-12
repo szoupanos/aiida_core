@@ -123,6 +123,51 @@ def share_pull():
     click.echo('command: share deauthorize')
 
 
+
+
+
+
+class non_block_stdin(object):
+
+    old_settings = None
+
+    def __enter__(self):
+        import termios
+        import sys
+
+        global old_settings
+        old_settings = termios.tcgetattr(sys.stdin)
+        new_settings = termios.tcgetattr(sys.stdin)
+        new_settings[3] = new_settings[3] & ~(
+        termios.ECHO | termios.ICANON)  # lflags
+        new_settings[6][termios.VMIN] = 0  # cc
+        new_settings[6][termios.VTIME] = 0  # cc
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, new_settings)
+
+    def __exit__(self, type, value, traceback):
+        import termios
+        import sys
+
+        global old_settings
+        if old_settings:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+
+# old_settings=None
+#
+# def init_non_block_stdin():
+#    global old_settings
+#    old_settings = termios.tcgetattr(sys.stdin)
+#    new_settings = termios.tcgetattr(sys.stdin)
+#    new_settings[3] = new_settings[3] & ~(termios.ECHO | termios.ICANON) # lflags
+#    new_settings[6][termios.VMIN] = 0  # cc
+#    new_settings[6][termios.VTIME] = 0 # cc
+#    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, new_settings)
+#
+# def term_non_block_stdin():
+#    global old_settings
+#    if old_settings:
+#       termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+
 @share.command('handle_push')
 # @click.argument('input', type=click.File('rb'))
 def share_handle_push():
@@ -140,7 +185,8 @@ def share_handle_push():
         logging.debug(
             "[share_handle_push] " + "sys.stdout.closed? " + str(sys.stdout.closed))
         logging.debug("[share_handle_push] " + "Reading message")
-        msg = sys.stdin.read(1024)
+        with non_block_stdin:
+            msg = sys.stdin.read(1024)
         logging.debug("[share_handle_push] " + "Read" + msg)
         if msg == "EXIT":
             break
@@ -151,7 +197,7 @@ def share_handle_push():
 
             logging.debug("[share_handle_push] " + "Reading the file size")
             # Read the size of the file
-            file_size = sys.stdin.read(1024)
+            file_size = int(sys.stdin.read(1024))
 
             bytes_read = 0
             while bytes_read <= file_size:
@@ -166,6 +212,8 @@ def share_handle_push():
 
     # sys.stdout.flush()
     logging.debug("[share_handle_push] " + "Finished while loop. Exiting")
+
+    term_non_block_stdin()
 
 
 # Here we have to find a way to select the needed ssh key
@@ -217,8 +265,8 @@ def paramiko_push_file(filename):
 
     file_size = os.path.getsize(filename)
     logging.debug("[paramiko_push_file] " + "Sending the file size (" +
-                  file_size + "bytes)")
-    session_channel.send(file_size)
+                  str(file_size) + " bytes)")
+    session_channel.send(str(file_size))
 
     logging.debug("[paramiko_push_file] " + "wait for the OK to send the file")
     while not session_channel.exit_status_ready():
