@@ -184,12 +184,12 @@ def share_handle_push():
 
     # init_non_block_stdin()
     try:
-
         while True:
             logging.debug(
                 "[share_handle_push] " + "sys.stdout.closed? " + str(sys.stdout.closed))
             logging.debug("[share_handle_push] " + "Reading message")
             with non_block_stdin:
+                logging.debug("[share_handle_push] " + "Inside non-blocking stdin")
                 msg = sys.stdin.read(1024)
             logging.debug("[share_handle_push] " + "Read" + msg)
             if msg == "EXIT":
@@ -267,11 +267,15 @@ def paramiko_push_file(filename):
     session_channel.send("FILE_SEND")
     # wait for the OK reply
     logging.debug("[paramiko_push_file] " + "wait for the OK reply")
-    while not session_channel.exit_status_ready():
+    while True:
         rec_msg = session_channel.recv(1024)
         logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
         if rec_msg == "OK":
             break
+        if session_channel.exit_status_ready():
+            logging.debug("[paramiko_push_file] " +
+                          "Remote process has exited, exiting too")
+            return
 
     logging.debug("[paramiko_push_file] " + "Proceeding to the file sent")
 
@@ -281,11 +285,15 @@ def paramiko_push_file(filename):
     session_channel.send(str(file_size))
 
     logging.debug("[paramiko_push_file] " + "wait for the OK to send the file")
-    while not session_channel.exit_status_ready():
+    while True:
         rec_msg = session_channel.recv(1024)
         logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
         if rec_msg == "OK":
             break
+        if session_channel.exit_status_ready():
+            logging.debug("[paramiko_push_file] " +
+                          "Remote process has exited, exiting too")
+            return
 
     # Proceeding to the file sent
     t = time.time()
