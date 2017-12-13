@@ -111,7 +111,7 @@ def share_push():
     """
     logging.debug('command: share push')
     # paramiko_push()
-    paramiko_push_file('/home/aiida/foo9/sample.txt')
+    paramiko_push_file('/home/aiida/foo10/sample.txt')
 
 
 @share.command('pull')
@@ -187,12 +187,18 @@ def share_handle_push():
         while True:
             logging.debug(
                 "[share_handle_push] " + "sys.stdout.closed? " + str(sys.stdout.closed))
+            logging.debug("[share_handle_push] " + "Reading message size")
+            msg_size = int(sys.stdin.read(4))
+            logging.debug("[share_handle_push] " + "Reply that you read message size")
+            sys.stdout.write("OK")
+            sys.stdout.flush()
             logging.debug("[share_handle_push] " + "Reading message")
-            with non_block_stdin:
-                logging.debug("[share_handle_push] " + "Inside non-blocking stdin")
-                msg = sys.stdin.read(1024)
+            msg = sys.stdin.read(msg_size)
             logging.debug("[share_handle_push] " + "Read" + msg)
             if msg == "EXIT":
+                logging.debug("[share_handle_push] " + "Received an exit command, exiting")
+                sys.stdout.write("OK")
+                sys.stdout.flush()
                 break
 
             if msg == "FILE_SEND":
@@ -201,15 +207,28 @@ def share_handle_push():
 
                 logging.debug("[share_handle_push] " + "Reading the file size")
                 # Read the size of the file
-                file_size = int(sys.stdin.read(1024))
+                file_size = int(sys.stdin.read(4))
+                sys.stdout.write("OK")
+                sys.stdout.flush()
 
                 bytes_read = 0
                 logging.debug("[share_handle_push] " + "Reading the file and "
                                                        "storing it locally.")
-                with open('output_file.bin', 'wb') as f:
-                    while bytes_read <= file_size:
-                        chunk = sys.stdin.read(1024)
+                with open('/home/aiida/foo10/output_file.bin', 'w') as f:
+                    while bytes_read < file_size:
+                        if file_size - bytes_read > 1024:
+                            logging.debug("[share_handle_push] " +
+                                          "Reading 1024 bytes")
+                            chunk = sys.stdin.read(1024)
+                        else:
+                            logging.debug("[share_handle_push] " +
+                                          "Reading " + str(file_size - bytes_read) + " bytes")
+                            chunk = sys.stdin.read(file_size - bytes_read)
                         f.write(chunk)
+                        logging.debug("[share_handle_push] " +
+                                      "Received: " + str(chunk))
+                        logging.debug("[share_handle_push] " +
+                                      "Chunk length: " + str(len(chunk)))
                         bytes_read += len(chunk)
 
                 # Sending OK that the file was read
@@ -226,6 +245,20 @@ def share_handle_push():
 
     # sys.stdout.flush()
     logging.debug("[share_handle_push] " + "Finished while loop. Exiting")
+
+def wait_for_ok(session_channel):
+    logging.debug("[paramiko_push_file] " + "wait for the OK reply")
+    while True:
+        rec_msg = session_channel.recv(1024)
+        logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
+        if rec_msg == "OK":
+            break
+        if session_channel.exit_status_ready():
+            logging.debug("[paramiko_push_file] " +
+                          "Remote process has exited, exiting too")
+            return -1
+
+    return 0
 
 
 # Here we have to find a way to select the needed ssh key
@@ -261,39 +294,31 @@ def paramiko_push_file(filename):
     session_channel.exec_command(command='cat')
 
 
+    logging.debug("[paramiko_push_file] " +
+                  "Sending the size of the bytes to read")
+    session_channel.send("0009")
+    if wait_for_ok(session_channel) == -1:
+        return
+
     # sending the command to be executed
     logging.debug("[paramiko_push_file] " +
                   "Informing that the command to be executed is a FILE_SEND")
+
     session_channel.send("FILE_SEND")
     # wait for the OK reply
-    logging.debug("[paramiko_push_file] " + "wait for the OK reply")
-    while True:
-        rec_msg = session_channel.recv(1024)
-        logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
-        if rec_msg == "OK":
-            break
-        if session_channel.exit_status_ready():
-            logging.debug("[paramiko_push_file] " +
-                          "Remote process has exited, exiting too")
-            return
+    if wait_for_ok(session_channel) == -1:
+        return
 
     logging.debug("[paramiko_push_file] " + "Proceeding to the file sent")
 
     file_size = os.path.getsize(filename)
     logging.debug("[paramiko_push_file] " + "Sending the file size (" +
                   str(file_size) + " bytes)")
-    session_channel.send(str(file_size))
+    session_channel.send(format(file_size, '4d'))
 
     logging.debug("[paramiko_push_file] " + "wait for the OK to send the file")
-    while True:
-        rec_msg = session_channel.recv(1024)
-        logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
-        if rec_msg == "OK":
-            break
-        if session_channel.exit_status_ready():
-            logging.debug("[paramiko_push_file] " +
-                          "Remote process has exited, exiting too")
-            return
+    if wait_for_ok(session_channel) == -1:
+        return
 
     # Proceeding to the file sent
     t = time.time()
@@ -328,6 +353,11 @@ def paramiko_push_file(filename):
             break
 
 
+    logging.debug("[paramiko_push_file] " +
+                  "Sending the size of the bytes to read")
+    session_channel.send("0004")
+    if wait_for_ok(session_channel) == -1:
+        return
     logging.debug("[paramiko_push_file] " +
                   "Informing that the command to be executed is an EXIT")
     session_channel.send("EXIT")
