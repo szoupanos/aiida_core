@@ -124,9 +124,6 @@ def share_pull():
 
 
 
-
-
-
 class non_block_stdin(object):
 
     old_settings = None
@@ -155,17 +152,21 @@ class non_block_stdin(object):
 # old_settings=None
 #
 # def init_non_block_stdin():
-#    global old_settings
-#    old_settings = termios.tcgetattr(sys.stdin)
-#    new_settings = termios.tcgetattr(sys.stdin)
-#    new_settings[3] = new_settings[3] & ~(termios.ECHO | termios.ICANON) # lflags
-#    new_settings[6][termios.VMIN] = 0  # cc
-#    new_settings[6][termios.VTIME] = 0 # cc
-#    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, new_settings)
+#     import termios
+#     import sys
+#     global old_settings
+#     old_settings = termios.tcgetattr(sys.stdin)
+#     new_settings = termios.tcgetattr(sys.stdin)
+#     new_settings[3] = new_settings[3] & ~(termios.ECHO | termios.ICANON) # lflags
+#     new_settings[6][termios.VMIN] = 0  # cc
+#     new_settings[6][termios.VTIME] = 0 # cc
+#     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, new_settings)
 #
 # def term_non_block_stdin():
-#    global old_settings
-#    if old_settings:
+#     import termios
+#     import sys
+#     global old_settings
+#     if old_settings:
 #       termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
 @share.command('handle_push')
@@ -181,39 +182,50 @@ def share_handle_push():
     # logging.warning('And this, too')
     # click.echo('command: share share_accept_push')
 
-    while True:
-        logging.debug(
-            "[share_handle_push] " + "sys.stdout.closed? " + str(sys.stdout.closed))
-        logging.debug("[share_handle_push] " + "Reading message")
-        with non_block_stdin:
-            msg = sys.stdin.read(1024)
-        logging.debug("[share_handle_push] " + "Read" + msg)
-        if msg == "EXIT":
-            break
+    # init_non_block_stdin()
+    try:
 
-        if msg == "FILE_SEND":
-            sys.stdout.write("OK")
-            sys.stdout.flush()
+        while True:
+            logging.debug(
+                "[share_handle_push] " + "sys.stdout.closed? " + str(sys.stdout.closed))
+            logging.debug("[share_handle_push] " + "Reading message")
+            with non_block_stdin:
+                msg = sys.stdin.read(1024)
+            logging.debug("[share_handle_push] " + "Read" + msg)
+            if msg == "EXIT":
+                break
 
-            logging.debug("[share_handle_push] " + "Reading the file size")
-            # Read the size of the file
-            file_size = int(sys.stdin.read(1024))
+            if msg == "FILE_SEND":
+                sys.stdout.write("OK")
+                sys.stdout.flush()
 
-            bytes_read = 0
-            while bytes_read <= file_size:
-                chunk = sys.stdin.read(1024)
-                bytes_read += len(chunk)
+                logging.debug("[share_handle_push] " + "Reading the file size")
+                # Read the size of the file
+                file_size = int(sys.stdin.read(1024))
 
-            # Sending OK that the file was read
-            logging.debug("[share_handle_push] " +
-                          "Sending OK that the file was read")
-            sys.stdout.write("OK")
-            sys.stdout.flush()
+                bytes_read = 0
+                logging.debug("[share_handle_push] " + "Reading the file and "
+                                                       "storing it locally.")
+                with open('output_file.bin', 'wb') as f:
+                    while bytes_read <= file_size:
+                        chunk = sys.stdin.read(1024)
+                        f.write(chunk)
+                        bytes_read += len(chunk)
+
+                # Sending OK that the file was read
+                logging.debug("[share_handle_push] " +
+                              "Sending OK that the file was read")
+                sys.stdout.write("OK")
+                sys.stdout.flush()
+
+    except Exception as e:
+        logging.debug("[share_handle_push] " + "Error occured: " + e)
+        if e.__cause__:
+            logging.debug("[share_handle_push] " + "Cause: " + e.__cause__)
+        raise
 
     # sys.stdout.flush()
     logging.debug("[share_handle_push] " + "Finished while loop. Exiting")
-
-    term_non_block_stdin()
 
 
 # Here we have to find a way to select the needed ssh key
