@@ -644,7 +644,7 @@ def _collect_tags(node, calc,parameters=None,
     and prepare it to be saved in TCOD CIF.
     """
     from aiida.common.links import LinkType
-    import os, json
+    import os
     import aiida
     tags = { '_audit_creation_method': "AiiDA version {}".format(aiida.__version__) }
 
@@ -707,7 +707,7 @@ def _collect_tags(node, calc,parameters=None,
         import json
         from aiida.common.exceptions import LicensingException
         from aiida.common.folders import SandboxFolder
-        from aiida.orm.importexport import export_tree
+        from aiida.sharing.importexport import export_tree
 
         with SandboxFolder() as folder:
             try:
@@ -963,7 +963,6 @@ def export_cifnode(what, parameters=None, trajectory_index=None,
     """
     from aiida.common.links import LinkType
     from aiida.common.exceptions import MultipleObjectsError
-    from aiida.orm.calculation.inline import make_inline
     CifData        = DataFactory('cif')
     StructureData  = DataFactory('structure')
     TrajectoryData = DataFactory('array.trajectory')
@@ -1106,7 +1105,6 @@ def deposit(what, type, author_name=None, author_email=None, url=None,
     from aiida.orm.code import Code
     from aiida.orm.computer import Computer
     from aiida.orm.data.parameter import ParameterData
-    from aiida.common.exceptions import NotExistent
 
     code = Code.get_from_string(code_label)
     computer = None

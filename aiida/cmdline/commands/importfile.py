@@ -13,7 +13,6 @@ from aiida.backends.utils import load_dbenv
 from aiida.cmdline.baseclass import VerdiCommand
 
 
-
 class Import(VerdiCommand):
     """
     Import nodes and group of nodes
@@ -30,7 +29,7 @@ class Import(VerdiCommand):
         import urllib2
 
         from aiida.common.folders import SandboxFolder
-        from aiida.orm.importexport import get_valid_import_links, import_data_dj, import_data_sqla
+        from aiida.sharing.importexport import get_valid_import_links, import_data_dj, import_data_sqla
 
         parser = argparse.ArgumentParser(
             prog=self.get_full_command_name(),

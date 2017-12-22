@@ -8,8 +8,9 @@
 # For further information please visit http://www.aiida.net               #
 ###########################################################################
 import click
-from aiida.cmdline.commands import verdi, export
+
 from aiida.cmdline.baseclass import VerdiCommandWithSubcommands
+from aiida.cmdline.commands import verdi, export
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
@@ -57,7 +58,7 @@ def create(outfile, computers, groups, nodes, group_names, no_parents, no_calc_o
     load_dbenv()
     from aiida.orm import Group, Node, Computer
     from aiida.orm.querybuilder import QueryBuilder
-    from aiida.orm.importexport import export, export_zip
+    from aiida.sharing.importexport import export, export_zip
 
     node_id_set = set(nodes)
     group_dict = dict()
@@ -323,7 +324,6 @@ def migrate_v2_to_v3(metadata, data):
     :param data: the content of an export archive data.json file
     :param metadata: the content of an export archive metadata.json file
     """
-    import json
     import enum
     from aiida.common.links import LinkType
 

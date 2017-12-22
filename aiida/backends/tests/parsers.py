@@ -75,7 +75,7 @@ def output_test(pk, testname, skip_uuids_from_inputs=[]):
     from aiida.common.folders import Folder
     from aiida.orm import JobCalculation
     from aiida.orm.utils import load_node
-    from aiida.orm.importexport import export_tree
+    from aiida.sharing.importexport import export_tree
     c = load_node(pk, parent_class=JobCalculation)
     outfolder = "test_{}_{}".format(
         c.get_parser_name().replace('.', '_'),
@@ -150,7 +150,7 @@ class TestParsers(AiidaTestCase):
 
         from aiida.orm import JobCalculation
         from aiida.orm.utils import load_node
-        from aiida.orm.importexport import import_data
+        from aiida.sharing.importexport import import_data
 
         imported = import_data(outfolder,
                                ignore_unknown_nodes=True, silent=True)

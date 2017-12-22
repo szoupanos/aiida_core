@@ -12,7 +12,7 @@ Tests for the export and import routines.
 """
 
 from aiida.backends.testbase import AiidaTestCase
-from aiida.orm.importexport import import_data
+from aiida.sharing.importexport import import_data
 
 
 class TestSpecificImport(AiidaTestCase):
@@ -202,11 +202,9 @@ class TestSimple(AiidaTestCase):
         import shutil
         import tempfile
 
-        from aiida.orm import DataFactory
         from aiida.orm import load_node
         from aiida.orm.data.base import Str, Int, Float, Bool
-        from aiida.orm.calculation.job import JobCalculation
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
 
         # Creating a folder for the import/export files
         temp_folder = tempfile.mkdtemp()
@@ -240,7 +238,7 @@ class TestSimple(AiidaTestCase):
         from aiida.orm import DataFactory
         from aiida.orm import load_node
         from aiida.orm.calculation.job import JobCalculation
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
 
         # Creating a folder for the import/export files
         temp_folder = tempfile.mkdtemp()
@@ -296,7 +294,7 @@ class TestSimple(AiidaTestCase):
         import tempfile
 
         from aiida.orm import DataFactory
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
 
         # Creating a folder for the import/export files
         export_file_tmp_folder = tempfile.mkdtemp()
@@ -343,7 +341,7 @@ class TestSimple(AiidaTestCase):
         import shutil
         import tempfile
 
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
         from aiida.common.folders import SandboxFolder
         from aiida.orm.data.structure import StructureData
         from aiida.orm import load_node
@@ -396,7 +394,7 @@ class TestSimple(AiidaTestCase):
         """
         from aiida.common.exceptions import LicensingException
         from aiida.common.folders import SandboxFolder
-        from aiida.orm.importexport import export_tree
+        from aiida.sharing.importexport import export_tree
 
         from aiida.orm import DataFactory
 
@@ -468,7 +466,7 @@ class TestSimple(AiidaTestCase):
         from aiida.orm import load_node
         from aiida.orm.calculation.job import JobCalculation
         from aiida.orm.data.structure import StructureData
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
         from aiida.common.datastructures import calc_states
         from aiida.common.links import LinkType
         from aiida.orm.user import User
@@ -552,7 +550,7 @@ class TestSimple(AiidaTestCase):
         from aiida.orm import load_node
         from aiida.orm.calculation.job import JobCalculation
         from aiida.orm.data.structure import StructureData
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
         from aiida.common.datastructures import calc_states
         from aiida.common.links import LinkType
         from aiida.common.utils import get_configured_user_email
@@ -658,10 +656,9 @@ class TestSimple(AiidaTestCase):
         from aiida.orm import load_node
         from aiida.orm.calculation.job import JobCalculation
         from aiida.orm.data.structure import StructureData
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
         from aiida.common.datastructures import calc_states
         from aiida.orm.user import User
-        from aiida.orm.node import Node
         from aiida.orm.querybuilder import QueryBuilder
 
         # Creating a folder for the import/export files
@@ -721,7 +718,7 @@ class TestSimple(AiidaTestCase):
         from aiida.work.workfunction import workfunction
         from aiida.orm.data.base import Float
         from aiida.orm import load_node
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
         from aiida.common.exceptions import NotExistent
         # Creating a folder for the import/export files
         temp_folder = tempfile.mkdtemp()
@@ -762,12 +759,11 @@ class TestSimple(AiidaTestCase):
         import shutil, os, tempfile
 
         from aiida.orm.calculation.work import WorkCalculation
-        from aiida.orm.data.base import Float,  Int
+        from aiida.orm.data.base import Int
         from aiida.orm import load_node
         from aiida.common.links import LinkType
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
 
-        from aiida.common.exceptions import NotExistent
         # Creating a folder for the import/export files
         temp_folder = tempfile.mkdtemp()
 
@@ -813,11 +809,11 @@ class TestSimple(AiidaTestCase):
         import os, shutil, tempfile, numpy as np, string, random
         from datetime import datetime
 
-        from aiida.orm import  Calculation, load_node, Group
+        from aiida.orm import  Calculation, Group
         from aiida.orm.data.array import ArrayData
         from aiida.orm.data.parameter import ParameterData
         from aiida.orm.querybuilder import QueryBuilder
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
         from aiida.common.hashing import make_hash
         from aiida.common.links import LinkType
         def get_hash_from_db_content(groupname):
@@ -936,7 +932,7 @@ class TestComplex(AiidaTestCase):
         from aiida.orm.data.parameter import ParameterData
         from aiida.orm.data.remote import RemoteData
         from aiida.common.links import LinkType
-        from aiida.orm.importexport import export, import_data
+        from aiida.sharing.importexport import export, import_data
         from aiida.orm.utils import load_node
         from aiida.common.exceptions import NotExistent
 
@@ -1025,7 +1021,7 @@ class TestComputer(AiidaTestCase):
         import shutil
         import tempfile
 
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
         from aiida.orm.querybuilder import QueryBuilder
         from aiida.orm.computer import Computer
         from aiida.orm.calculation.job import JobCalculation
@@ -1149,7 +1145,7 @@ class TestComputer(AiidaTestCase):
         import shutil
         import tempfile
 
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
         from aiida.orm.querybuilder import QueryBuilder
         from aiida.orm.computer import Computer
         from aiida.orm.calculation.job import JobCalculation
@@ -1254,11 +1250,11 @@ class TestComputer(AiidaTestCase):
         import shutil
         import tempfile
 
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
         from aiida.orm.querybuilder import QueryBuilder
         from aiida.orm.computer import Computer
         from aiida.orm.calculation.job import JobCalculation
-        from aiida.orm.importexport import COMP_DUPL_SUFFIX
+        from aiida.sharing.importexport import COMP_DUPL_SUFFIX
 
         # Creating a folder for the import/export files
         export_file_tmp_folder = tempfile.mkdtemp()
@@ -1375,7 +1371,7 @@ class TestComputer(AiidaTestCase):
         import shutil
         import tempfile
 
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
         from aiida.orm.querybuilder import QueryBuilder
         from aiida.orm.computer import Computer
         from aiida.orm.calculation.job import JobCalculation
@@ -1494,7 +1490,7 @@ class TestLinks(AiidaTestCase):
     def get_all_node_links(self):
         """
         """
-        from aiida.orm import load_node, Node
+        from aiida.orm import Node
         from aiida.orm.querybuilder import QueryBuilder
         qb = QueryBuilder()
         qb.append(Node, project='uuid', tag='input')
@@ -1509,10 +1505,9 @@ class TestLinks(AiidaTestCase):
         import os, shutil, tempfile
 
         from aiida.orm.data.base import Int
-        from aiida.orm.importexport import export
+        from aiida.sharing.importexport import export
         from aiida.orm.calculation.work import WorkCalculation
         from aiida.common.links import LinkType
-        from aiida.common.exceptions import NotExistent
 
         tmp_folder = tempfile.mkdtemp()
 
@@ -1562,13 +1557,11 @@ class TestLinks(AiidaTestCase):
         import os, shutil, tempfile
 
         from aiida.orm.data.base import Int
-        from aiida.orm import Node, Data
-        from aiida.orm.importexport import export
-        from aiida.orm.calculation import Calculation
+        from aiida.orm import Data
+        from aiida.sharing.importexport import export
         from aiida.orm.calculation.inline import InlineCalculation
         from aiida.orm.calculation.work import WorkCalculation
         from aiida.common.links import LinkType
-        from aiida.common.exceptions import NotExistent
         from aiida.orm.querybuilder import QueryBuilder
         tmp_folder = tempfile.mkdtemp()
 
@@ -1628,14 +1621,9 @@ class TestLinks(AiidaTestCase):
         import os, shutil, tempfile
 
         from aiida.orm.data.base import Int
-        from aiida.orm import Node, Data
-        from aiida.orm.importexport import export
-        from aiida.orm.calculation import Calculation
-        from aiida.orm.calculation.inline import InlineCalculation
+        from aiida.sharing.importexport import export
         from aiida.orm.calculation.work import WorkCalculation
         from aiida.common.links import LinkType
-        from aiida.common.exceptions import NotExistent
-        from aiida.orm.querybuilder import QueryBuilder
         tmp_folder = tempfile.mkdtemp()
 
         try:
