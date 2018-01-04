@@ -14,8 +14,8 @@ class ProtocolTest(unittest.TestCase):
     """
     Tests for the Protocol class.
     """
-
-    def test_open_connection(self):
+    @staticmethod
+    def test_open_connection():
         """
         Simple test that check that the connection is opened and closed
         properly
@@ -27,3 +27,18 @@ class ProtocolTest(unittest.TestCase):
                 'localhost', '/home/aiida/.ssh/id_rsa')
         finally:
             prot.close_connection(client, channel)
+
+    # This needs more work on send & receive
+    # @staticmethod
+    # def test_send_receive():
+    #     from aiida.sharing.protocol import Protocol
+    #     prot = Protocol()
+    #     msg = "This is a message to send"
+    #     try:
+    #         client, channel = prot.open_connection(
+    #             'localhost', '/home/aiida/.ssh/id_rsa')
+    #
+    #         prot.send(channel=channel, chunk = msg)
+    #     finally:
+    #
+    #         prot.close_connection(client, channel)
