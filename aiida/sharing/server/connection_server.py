@@ -9,6 +9,7 @@
 ###########################################################################
 
 import logging
+import sys
 
 class ConnectionServer:
 
@@ -16,7 +17,10 @@ class ConnectionServer:
         pass
 
     def send(self):
-        pass
+        logging.debug("[receive] " + "Sending message size")
+        msg_size = int(sys.stdin.read(self.BYTES_FOR_CHUNK_SIZE_MSG))
+        logging.debug("[receive] " + "Reply that you read message size")
+        sys.stdout.write(self.OK_MSG)
 
     def receive(self):
         """
@@ -25,8 +29,6 @@ class ConnectionServer:
         data.
         :return: The message (chunk) received.
         """
-        import sys
-
         logging.debug("[receive] " + "Reading message size")
         msg_size = int(sys.stdin.read(self.BYTES_FOR_CHUNK_SIZE_MSG))
         logging.debug("[receive] " + "Reply that you read message size")

@@ -7,13 +7,3 @@
 # For further information on the license, see the LICENSE.txt file        #
 # For further information please visit http://www.aiida.net               #
 ###########################################################################
-
-# The buffer size
-BUFFER_SIZE = 1024
-
-# This is the reserved number of bytes for chunk message
-# that will be sent by the sender to the receiver
-BYTES_FOR_CHUNK_SIZE_MSG = 10
-
-# Acknowledgement message
-OK_MSG = 'OK'

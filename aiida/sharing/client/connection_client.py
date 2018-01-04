@@ -10,7 +10,7 @@
 
 import logging
 
-class ConnectionClient:
+class ConnectionClient(Connection):
 
     # The buffer size
     BUFFER_SIZE = 1024
@@ -86,7 +86,7 @@ class ConnectionClient:
 
     def receive(self):
         pass
-    
+
     def open_connection(self, hostname, key_path):
         """
         This method opens a connection to the remote host identified by the
@@ -126,22 +126,6 @@ class ConnectionClient:
             client.close()
 
         logging.debug("[close_connection] " + "Exiting")
-
-    def submit_cmd(self, channel, command):
-        """
-        This is the general command
-        :param channel:
-        :param command:
-        :return:
-        """
-        if command not in self.AVAILABLE_CMDS:
-            logging.debug("[submit_cmd] " + "Not a valid command, exiting")
-            return 1
-
-        # Inform the receiver about the command to be executed
-        self.send(channel, command, size_of_chunck = len(command))
-
-        # Execute the command
 
 def paramiko_push_file(filename):
     """
