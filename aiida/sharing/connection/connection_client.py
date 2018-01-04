@@ -10,7 +10,7 @@
 
 import logging
 
-class Protocol:
+class ConnectionClient:
 
     # The buffer size
     BUFFER_SIZE = 1024
@@ -22,7 +22,8 @@ class Protocol:
     # Acknowledgement message
     OK_MSG = 'OK'
 
-    # Channel information needed for the command execution
+    # The underlying client and channel information
+    client = None
     channel = None
 
     def __init__(self):
@@ -84,54 +85,33 @@ class Protocol:
         return 0
 
     def receive(self):
-        """
-        This methods receives a chunk that we sent with the respective send
-        command. The receive command uses the standard input to receive
-        data.
-        :return: The message (chunk) received.
-        """
-        import sys
-
-        logging.debug("[receive] " + "Reading message size")
-        msg_size = int(sys.stdin.read(self.BYTES_FOR_CHUNK_SIZE_MSG))
-        logging.debug("[receive] " + "Reply that you read message size")
-        sys.stdout.write(self.OK_MSG)
-        sys.stdout.flush()
-        logging.debug("[receive] " + "Reading message")
-        msg = sys.stdin.read(msg_size)
-        logging.debug("[receive] " + "Read" + msg)
-
-        return msg
-
-    @staticmethod
-    def open_connection(hostname, key_path):
+        pass
+    
+    def open_connection(self, hostname, key_path):
         """
         This method opens a connection to the remote host identified by the
         hostname. The key found at the specific key_path is used for
-        idenitification
+        identification
         :param hostname: The remote host.
         :param key_path: The path to the key.
-        :return: The open channel to the remote host open for further usage.
         """
         import paramiko
 
-        client = paramiko.SSHClient()
-        client.load_system_host_keys()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.client = paramiko.SSHClient()
+        self.client.load_system_host_keys()
+        self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         key = paramiko.RSAKey.from_private_key_file(key_path)
 
         # Also params here, e.g. key_filename=, timeout=, ...
-        client.connect(hostname, pkey=key)
+        self.client.connect(hostname, pkey=key)
         logging.debug("[open_connection] " + "Connected")
-        transport = client.get_transport()
+        transport = self.client.get_transport()
         logging.debug("[open_connection] " + "Transport got")
-        channel = transport.open_session()
+        self.channel = transport.open_session()
         logging.debug("[open_connection] " + "Session/channel open")
 
-        channel.exec_command(command='cat')
-
-        return client, channel
+        self.channel.exec_command(command='cat')
 
     @staticmethod
     def close_connection(client, channel):
@@ -162,84 +142,6 @@ class Protocol:
         self.send(channel, command, size_of_chunck = len(command))
 
         # Execute the command
-
-class Command:
-
-    # The underlying protocol to be used for the communication
-    protocol = None
-
-    # Selected command
-    command = None
-
-    # Available commands
-    SEND_FILE = 'SEND_FILE'
-    SEND_BUFF = 'SEND_BUFF'
-
-    # Set of commands
-    AVAILABLE_CMDS = set(SEND_FILE, SEND_BUFF)
-
-    def __init__(self, channel, command, protocol):
-        from aiida.common.exceptions import InvalidOperation
-
-        if channel is None or command is None:
-            logging.debug("[Command] " + "You must provide a command and a "
-                                         "channel, exiting")
-            raise InvalidOperation("You must provide a command and a channel.")
-        if command not in self.AVAILABLE_CMDS:
-            logging.debug("[Command] " + "The command requested is not "
-                                         "supported, exiting")
-            raise InvalidOperation("The command requested is not supported.")
-
-        self.channel = channel
-        self.command = command
-
-    def submit(self, command, **kwargs):
-        """
-        This is the general command
-        :param channel:
-        :param command:
-        :return:
-        """
-        # Inform the receiver about the command to be executed
-        self.send(self.channel, self.command, size_of_chunck = len(command))
-
-        # Execute the command
-        self.send_cmd_selector(**kwargs)
-
-    def send_cmd_selector(self, argument):
-        switcher = {
-            self.SEND_FILE : self.send_file_cmd,
-            self.SEND_BUFF: self.send_buff_cmd,
-        }
-        # Get the right send command
-        send_cmd = switcher.get(argument)
-        # Execute the method
-        return send_cmd()
-
-    def send_file_cmd(self, filename):
-        # Proceeding to the file sent
-        t = time.time()
-        bytes = 0
-        try:
-            f = open(filename, "rb")
-            while True:
-                chunk = f.read(1024)
-                if not chunk:
-                    break
-
-                bytes += sys.getsizeof(chunk)
-                logging.debug("[send_file_cmd] " + "Sending: " + chunk)
-                byte_no = session_channel.send(chunk)
-                logging.debug("[send_file_cmd] " + "Sent " + str(byte_no)
-                              + " bytes.")
-        finally:
-            logging.debug(
-                "[send_file_cmd] " + "Sending finished, closing file")
-            f.close()
-
-    def send_buff_cmd(self, **kwargs):
-        pass
-
 
 def paramiko_push_file(filename):
     """

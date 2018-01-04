@@ -20,8 +20,8 @@ class ProtocolTest(unittest.TestCase):
         Simple test that check that the connection is opened and closed
         properly
         """
-        from aiida.sharing.protocol import Protocol
-        prot = Protocol()
+        from aiida.sharing.protocol import Connection
+        prot = Connection()
         try:
             client, channel = prot.open_connection(
                 'localhost', '/home/aiida/.ssh/id_rsa')
