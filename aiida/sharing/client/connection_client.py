@@ -20,7 +20,7 @@ class ConnectionClient(Connection):
     def __init__(self):
         pass
 
-    def wait_for_ok(self, channel):
+    def wait_for_ok(self):
         """
         This method waits for an OK from the other side of the channel
         :param channel: The channel to be used
@@ -28,18 +28,18 @@ class ConnectionClient(Connection):
         """
         logging.debug("[wait_for_ok] " + "wait for the OK reply")
         while True:
-            rec_msg = channel.recv(1024)
+            rec_msg = self.channel.recv(self.BUFFER_SIZE)
             logging.debug("[wait_for_ok] " + "Received" + rec_msg)
             if rec_msg == self.OK_MSG:
                 break
-            if channel.exit_status_ready():
+            if self.channel.exit_status_ready():
                 logging.debug("[wait_for_ok] " +
                               "Remote process has exited, exiting too")
                 return 1
 
         return 0
 
-    def send(self, channel, chunk, size_of_chunck = None):
+    def send(self, chunk, size_of_chunck = None):
         """
         This method sends a chunk to the receiver using the provided channel.
         It will send size_of_chunck bytes. If the size is not given, then it
@@ -58,25 +58,31 @@ class ConnectionClient(Connection):
 
         logging.debug("[send] " + "Sending the chunk size (" +
                       str(bytes_to_send) + " bytes)")
-        channel.send(format(bytes_to_send,
+        self.channel.send(format(bytes_to_send,
                             str(self.BYTES_FOR_CHUNK_SIZE_MSG) + 'd'))
 
         logging.debug("[send] " + "wait for the OK to send the chunk.")
-        if self.wait_for_ok(channel) == -1:
+        if self.wait_for_ok(self.channel) == -1:
             return 1
 
-        byte_no = channel.send(chunk)
+        byte_no = self.channel.send(chunk)
         logging.debug("[send] " + "Sent " + str(byte_no) + " bytes.")
 
         logging.debug(
             "[send] " + "wait for the OK to send the file")
-        if self.wait_for_ok(channel) == 1:
+        if self.wait_for_ok(self.channel) == 1:
             return 1
 
         return 0
 
     def receive(self):
-        pass
+        logging.debug("[receive] " + "Reading message size")
+        chunk_size = self.channel.recv(self.BYTES_FOR_CHUNK_SIZE_MSG)
+        logging.debug("[receive] " + "Reply that you read message size")
+        self.channel.send(self.OK_MSG)
+        logging.debug("[receive] " + "Reading message")
+        self.channel.recv(chunk_size)
+        logging.debug("[receive] " + "Read" + msg)
 
     def open_connection(self, hostname, key_path):
         """
