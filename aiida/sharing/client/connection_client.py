@@ -9,18 +9,9 @@
 ###########################################################################
 
 import logging
+from aiida.sharing.connection import Connection
 
 class ConnectionClient(Connection):
-
-    # The buffer size
-    BUFFER_SIZE = 1024
-
-    # This is the reserved number of bytes for chunk message
-    # that will be sent by the sender to the receiver
-    BYTES_FOR_CHUNK_SIZE_MSG = 10
-
-    # Acknowledgement message
-    OK_MSG = 'OK'
 
     # The underlying client and channel information
     client = None
