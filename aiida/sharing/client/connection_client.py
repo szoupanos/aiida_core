@@ -110,17 +110,16 @@ class ConnectionClient(Connection):
 
         self.channel.exec_command(command='cat')
 
-    @staticmethod
-    def close_connection(client, channel):
+    def close_connection(self):
         """
         Closing channels and exiting
         """
-        if channel is not None:
+        if self.channel is not None:
             logging.debug("[close_connection] " + "Closing chanel")
-            channel.close()
-        if client is not None:
+            self.channel.close()
+        if self.client is not None:
             logging.debug("[close_connection] " + "Closing client")
-            client.close()
+            self.client.close()
 
         logging.debug("[close_connection] " + "Exiting")
 
@@ -238,122 +237,6 @@ def paramiko_push_file(filename):
     client.close()
     logging.debug("[paramiko_push_file] " + "Exiting")
 
-
-
-
-# Here we have to find a way to select the needed ssh key
-def paramiko_push_file_old(filename):
-    # Docs on paramiko:
-    # http://docs.paramiko.org/en/2.0/api/channel.html
-    # there are various notes on how to avoid locking, to choose the parameters,
-    # to be efficient, ...
-    import paramiko
-    import time
-    import sys
-    import os
-
-    client = paramiko.SSHClient()
-    client.load_system_host_keys()
-    # client.set_missing_host_key_policy(paramiko.RejectPolicy())
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    k = paramiko.RSAKey.from_private_key_file(
-        "/home/aiida/.ssh/id_rsa_s4")
-
-    # Also params here, e.g. key_filename=, timeout=, ...
-    client.connect('ubuntu-aiida-vm1.epfl.ch', pkey=k)
-    # client.connect('ubuntu-aiida-vm1.epfl.ch')
-    # client.connect('localhost')
-    # client.connect('theossrv2.epfl.ch')
-    logging.debug("[paramiko_push_file] " + "Connected")
-    transport = client.get_transport()
-    logging.debug("[paramiko_push_file] " + "Transport got")
-    session_channel = transport.open_session()
-    logging.debug("[paramiko_push_file] " + "Session open")
-
-    session_channel.exec_command(command='cat')
-
-
-    logging.debug("[paramiko_push_file] " +
-                  "Sending the size of the bytes to read")
-    session_channel.send("0009")
-    if wait_for_ok(session_channel) == -1:
-        return
-
-    # sending the command to be executed
-    logging.debug("[paramiko_push_file] " +
-                  "Informing that the command to be executed is a FILE_SEND")
-
-    session_channel.send("FILE_SEND")
-    # wait for the OK reply
-    if wait_for_ok(session_channel) == -1:
-        return
-
-    logging.debug("[paramiko_push_file] " + "Proceeding to the file sent")
-
-    file_size = os.path.getsize(filename)
-    logging.debug("[paramiko_push_file] " + "Sending the file size (" +
-                  str(file_size) + " bytes)")
-    session_channel.send(format(file_size, '4d'))
-
-    logging.debug("[paramiko_push_file] " + "wait for the OK to send the file")
-    if wait_for_ok(session_channel) == -1:
-        return
-
-    # Proceeding to the file sent
-    t = time.time()
-    bytes = 0
-    try:
-        f = open(filename, "rb")
-        while True:
-            chunk = f.read(1024)
-            if not chunk:
-                break
-
-            bytes += sys.getsizeof(chunk)
-            logging.debug("[paramiko_push_file] " + "Sending: " + chunk)
-            byte_no = session_channel.send(chunk)
-            logging.debug("[paramiko_push_file] " + "Sent " + str(byte_no)
-                          + " bytes.")
-    finally:
-        logging.debug("[paramiko_push_file] " + "Sending finished, closing file")
-        f.close()
-
-    tottime = time.time() - t
-    logging.debug("[paramiko_push_file] " + "Time spent: {} s, throughput: {} kB/s.".format(
-        tottime, bytes / 1000 * tottime))
-
-    logging.debug("[paramiko_push_file] " + "wait for the OK that the file "
-                                            "was sent successfully.")
-
-    while not session_channel.exit_status_ready():
-        rec_msg = session_channel.recv(1024)
-        logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
-        if rec_msg == "OK":
-            break
-
-
-    logging.debug("[paramiko_push_file] " +
-                  "Sending the size of the bytes to read")
-    session_channel.send("0004")
-    if wait_for_ok(session_channel) == -1:
-        return
-    logging.debug("[paramiko_push_file] " +
-                  "Informing that the command to be executed is an EXIT")
-    session_channel.send("EXIT")
-    # wait for the OK reply
-    logging.debug("[paramiko_push_file] " + "wait for the OK reply")
-    while not session_channel.exit_status_ready():
-        rec_msg = session_channel.recv(1024)
-        logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
-        if rec_msg == "OK":
-            break
-
-    # Closing channels and exiting
-    logging.debug("[paramiko_push_file] " + "Closing chanel")
-    session_channel.close()
-    client.close()
-    logging.debug("[paramiko_push_file] " + "Exiting")
 
 
 def share_handle_push():
