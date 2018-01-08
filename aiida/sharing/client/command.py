@@ -8,6 +8,16 @@
 # For further information please visit http://www.aiida.net               #
 ###########################################################################
 
+from aiida.sharing.sharing_logging import SharingLoggingFactory
+
+
+class CommandHandler:
+
+    def __init__(self):
+        self.logger = SharingLoggingFactory.get_logger(
+            SharingLoggingFactory.get_fullclass_name(self.__class__))
+        
+
 class Command:
 
     # The underlying protocol to be used for the communication
@@ -23,22 +33,29 @@ class Command:
     # Set of commands
     AVAILABLE_CMDS = set(SEND_FILE, SEND_BUFF)
 
+    # Command logger
+    logger = None
+
     def __init__(self, channel, command, protocol):
         from aiida.common.exceptions import InvalidOperation
+        from aiida.sharing.sharing_logging import SharingLoggingFactory
+
+        # Initialising the logger
+        self.logger = SharingLoggingFactory.get_logger('command_logger')
 
         if channel is None or command is None:
-            logging.debug("[Command] " + "You must provide a command and a "
-                                         "channel, exiting")
+            self.logger.debug(
+                "[Command] " + "You must provide a command and a channel, exiting")
             raise InvalidOperation("You must provide a command and a channel.")
         if command not in self.AVAILABLE_CMDS:
-            logging.debug("[Command] " + "The command requested is not "
+            self.logger.debug("[Command] " + "The command requested is not "
                                          "supported, exiting")
             raise InvalidOperation("The command requested is not supported.")
 
         self.channel = channel
         self.command = command
 
-    def submit(self, command, **kwargs):
+    def execute(self, command, **kwargs):
         """
         This is the general command
         :param channel:
@@ -62,6 +79,8 @@ class Command:
         return send_cmd()
 
     def send_file_cmd(self, filename):
+        import time
+        import sys
         # Proceeding to the file sent
         t = time.time()
         bytes = 0
@@ -73,10 +92,10 @@ class Command:
                     break
 
                 bytes += sys.getsizeof(chunk)
-                logging.debug("[send_file_cmd] " + "Sending: " + chunk)
+                self.logger.debug("[send_file_cmd] " + "Sending: " + chunk)
                 byte_no = session_channel.send(chunk)
-                logging.debug("[send_file_cmd] " + "Sent " + str(byte_no)
-                              + " bytes.")
+                self.logger.debug("[send_file_cmd] " + "Sent " + str(byte_no)
+                                  + " bytes.")
         finally:
             logging.debug(
                 "[send_file_cmd] " + "Sending finished, closing file")

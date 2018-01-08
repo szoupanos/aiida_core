@@ -172,6 +172,10 @@ class non_block_stdin(object):
 @share.command('handle_push')
 # @click.argument('input', type=click.File('rb'))
 def share_handle_push():
+    pass
+
+
+def server_handle_push():
     """
     Pull nodes from the repository related to the remote profile found at the
     specified remote AiiDA instance.

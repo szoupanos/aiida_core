@@ -75,6 +75,17 @@ class ConnectionClient(Connection):
 
         return 0
 
+    # def send_file(self):
+    #     try:
+    #         self.open_connection('localhost', '/home/aiida/.ssh/id_rsa_s4')
+    #         self.send()
+    #     finally:
+    #         self.close_connection()
+    #
+    # def send_cmd(self):
+    #     self.send()
+
+
     def receive(self):
         logging.debug("[receive] " + "Reading message size")
         chunk_size = self.channel.recv(self.BYTES_FOR_CHUNK_SIZE_MSG)
