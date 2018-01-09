@@ -9,6 +9,7 @@
 ###########################################################################
 
 from abc import ABCMeta, abstractmethod
+from aiida.sharing.sharing_logging import SharingLoggingFactory
 
 class Connection:
     __metaclass__ = ABCMeta
@@ -22,6 +23,10 @@ class Connection:
 
     # Acknowledgement message
     OK_MSG = 'OK'
+
+    def __init__(self):
+        self.logger = SharingLoggingFactory.get_logger(
+            SharingLoggingFactory.get_fullclass_name(self.__class__))
 
     @abstractmethod
     def send(self):

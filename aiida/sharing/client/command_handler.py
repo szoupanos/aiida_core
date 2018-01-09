@@ -22,18 +22,22 @@ class ClientCommandHandler(CommandHandler):
     key_path = None
 
     def __init__(self, hostname, key_path):
+        super(ClientCommandHandler, self).__init__()
+
         # Initialising the logger
         self.hostname = hostname
         self.key_path = key_path
 
     def __enter__(self):
         if (not self.hostname is None) and (not self.key_path is None):
+            self.logger.debug("Connecting to server")
             self.connection = ConnectionClient()
             self.connection.open_connection(self.hostname, self.key_path)
         return self
 
     def __exit__(self, *exc):
         if self.connection is not None:
+            self.logger.debug("Closing connection")
             self.connection.close_connection()
         return False
 
@@ -45,6 +49,7 @@ class ClientCommandHandler(CommandHandler):
 
         # Create the command class
         cmd_class = self.cmd_selector(command)
+        self.logger.debug("I will execute the " + command + " command")
         cmd_obj = cmd_class(self.connection)
         # Execute command
         cmd_obj.execute(**kwargs)

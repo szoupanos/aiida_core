@@ -16,24 +16,21 @@ class SharingLoggingFactory:
 
     @classmethod
     def get_logger(cls, logger_name):
-        import logging
-
-        if len(cls.__loggers.keys()) == 0:
+        if not cls.__loggers.has_key(logger_name):
+            import logging
             import inspect
             import os
 
             # Get the current path - Needed to place the log file
             path = os.path.dirname(inspect.getfile(cls))
-
-            logging.basicConfig(
-                filename=os.path.join(path,'sharing_debug.log'),
-                # format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
-                format='%(asctime)s,%(msecs)d %(levelname)-8s [%(pathname)s:%(lineno)s %(funcName)s] %(message)s',
-                datefmt='%d-%m-%Y:%H:%M:%S',
-                level=logging.DEBUG)
-
-        if not cls.__loggers.has_key(logger_name):
             logger = logging.getLogger(logger_name)
+            hdlr = logging.FileHandler(os.path.join(path,'sharing_debug.log'))
+            formatter = logging.Formatter(
+                '%(asctime)s,%(msecs)d %(levelname)-8s '
+                '[%(name)s:%(funcName)s] %(message)s')
+            hdlr.setFormatter(formatter)
+            logger.addHandler(hdlr)
+            logger.setLevel(logging.DEBUG)
             cls.__loggers[logger_name] = logger
             return logger
 
@@ -41,4 +38,4 @@ class SharingLoggingFactory:
 
     @staticmethod
     def get_fullclass_name(given_class):
-        return given_class.__module__ + "." + given_class.__class__.__name__
+        return given_class.__module__ + "." + given_class.__name__
