@@ -116,7 +116,13 @@ def share_push():
     from aiida.sharing.client.command_handler import ClientCommandHandler
     from aiida.sharing.client.command import SendFileCommand
 
-    ClientCommandHandler().handle(SendFileCommand.cmd_name)
+    with ClientCommandHandler(
+            'localhost',
+            '/home/aiida/.ssh/id_rsa_s4'
+    ) as cch:
+        cch.handle(
+            SendFileCommand.cmd_name,
+            filename='/home/aiida/foo10/sample.txt')
 
 def share_push_old():
     """

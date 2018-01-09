@@ -16,8 +16,9 @@ class SharingLoggingFactory:
 
     @classmethod
     def get_logger(cls, logger_name):
+        import logging
+
         if len(cls.__loggers.keys()) == 0:
-            import logging
             import inspect
             import os
 
@@ -26,7 +27,8 @@ class SharingLoggingFactory:
 
             logging.basicConfig(
                 filename=os.path.join(path,'sharing_debug.log'),
-                format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+                # format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+                format='%(asctime)s,%(msecs)d %(levelname)-8s [%(pathname)s:%(lineno)s %(funcName)s] %(message)s',
                 datefmt='%d-%m-%Y:%H:%M:%S',
                 level=logging.DEBUG)
 

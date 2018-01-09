@@ -22,7 +22,7 @@ class CommandHandler:
     REC_FILE = ReceiveFileCommand.cmd_name
 
     # Set of commands
-    AVAILABLE_CMDS = set(SEND_FILE, SEND_BUFF)
+    AVAILABLE_CMDS = set((SEND_FILE, SEND_BUFF))
 
     def __init__(self):
         self.logger = SharingLoggingFactory.get_logger(
@@ -35,9 +35,9 @@ class CommandHandler:
 
     def cmd_selector(self, command_name):
         switcher = {
-            self.SEND_FILE : SendFileCommand(),
+            self.SEND_FILE : SendFileCommand,
         }
         # Get the right send command
         cmd_class = switcher.get(command_name)
         # Execute the method
-        return cmd_class()
+        return cmd_class

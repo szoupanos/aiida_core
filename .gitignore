@@ -17,3 +17,6 @@
 # files created by coverage
 *\,cover
 coverage/
+
+# log files
+*.log

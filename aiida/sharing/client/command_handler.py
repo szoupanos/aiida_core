@@ -39,12 +39,12 @@ class ClientCommandHandler(CommandHandler):
 
     def handle(self, command, **kwargs):
         if command not in self.AVAILABLE_CMDS:
-            self.logger.debug("[Command] " + "The command requested is not "
-                                         "supported, exiting")
+            self.logger.debug("The command requested is not supported, "
+                              "exiting")
             raise InvalidOperation("The command requested is not supported.")
 
         # Create the command class
-        cmd_class = self.cmd_selector(**kwargs)
+        cmd_class = self.cmd_selector(command)
         cmd_obj = cmd_class(self.connection)
         # Execute command
         cmd_obj.execute(**kwargs)

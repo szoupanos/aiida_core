@@ -26,15 +26,14 @@ class ConnectionClient(Connection):
         :param channel: The channel to be used
         :return: The exit code.
         """
-        logging.debug("[wait_for_ok] " + "wait for the OK reply")
+        logging.debug("wait for the OK reply")
         while True:
             rec_msg = self.channel.recv(self.BUFFER_SIZE)
-            logging.debug("[wait_for_ok] " + "Received" + rec_msg)
+            logging.debug("Received" + rec_msg)
             if rec_msg == self.OK_MSG:
                 break
             if self.channel.exit_status_ready():
-                logging.debug("[wait_for_ok] " +
-                              "Remote process has exited, exiting too")
+                logging.debug("Remote process has exited, exiting too")
                 return 1
 
         return 0
@@ -56,44 +55,32 @@ class ConnectionClient(Connection):
         if size_of_chunck is None:
             bytes_to_send = sys.getsizeof(chunk)
 
-        logging.debug("[send] " + "Sending the chunk size (" +
+        logging.debug("Sending the chunk size (" +
                       str(bytes_to_send) + " bytes)")
         self.channel.send(format(bytes_to_send,
                             str(self.BYTES_FOR_CHUNK_SIZE_MSG) + 'd'))
 
-        logging.debug("[send] " + "wait for the OK to send the chunk.")
-        if self.wait_for_ok(self.channel) == -1:
+        logging.debug("wait for the OK to send the chunk.")
+        if self.wait_for_ok() == -1:
             return 1
 
         byte_no = self.channel.send(chunk)
-        logging.debug("[send] " + "Sent " + str(byte_no) + " bytes.")
+        logging.debug("Sent " + str(byte_no) + " bytes.")
 
-        logging.debug(
-            "[send] " + "wait for the OK to send the file")
-        if self.wait_for_ok(self.channel) == 1:
+        logging.debug("wait for the OK to send the file")
+        if self.wait_for_ok() == 1:
             return 1
 
         return 0
 
-    # def send_file(self):
-    #     try:
-    #         self.open_connection('localhost', '/home/aiida/.ssh/id_rsa_s4')
-    #         self.send()
-    #     finally:
-    #         self.close_connection()
-    #
-    # def send_cmd(self):
-    #     self.send()
-
-
     def receive(self):
-        logging.debug("[receive] " + "Reading message size")
+        logging.debug("Reading message size")
         chunk_size = self.channel.recv(self.BYTES_FOR_CHUNK_SIZE_MSG)
-        logging.debug("[receive] " + "Reply that you read message size")
+        logging.debug("Reply that you read message size")
         self.channel.send(self.OK_MSG)
-        logging.debug("[receive] " + "Reading message")
-        self.channel.recv(chunk_size)
-        logging.debug("[receive] " + "Read" + msg)
+        logging.debug("Reading message")
+        msg = self.channel.recv(chunk_size)
+        logging.debug("Read" + msg)
 
     def open_connection(self, hostname, key_path):
         """
@@ -113,11 +100,11 @@ class ConnectionClient(Connection):
 
         # Also params here, e.g. key_filename=, timeout=, ...
         self.client.connect(hostname, pkey=key)
-        logging.debug("[open_connection] " + "Connected")
+        logging.debug("Connected")
         transport = self.client.get_transport()
-        logging.debug("[open_connection] " + "Transport got")
+        logging.debug("Transport got")
         self.channel = transport.open_session()
-        logging.debug("[open_connection] " + "Session/channel open")
+        logging.debug("Session/channel open")
 
         self.channel.exec_command(command='cat')
 
@@ -126,13 +113,13 @@ class ConnectionClient(Connection):
         Closing channels and exiting
         """
         if self.channel is not None:
-            logging.debug("[close_connection] " + "Closing chanel")
+            logging.debug("Closing chanel")
             self.channel.close()
         if self.client is not None:
-            logging.debug("[close_connection] " + "Closing client")
+            logging.debug("Closing client")
             self.client.close()
 
-        logging.debug("[close_connection] " + "Exiting")
+        logging.debug("Exiting")
 
 def paramiko_push_file(filename):
     """

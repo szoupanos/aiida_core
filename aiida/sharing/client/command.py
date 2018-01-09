@@ -32,7 +32,8 @@ class SendFileCommand(Command):
             raise InvalidOperation("The connection is not initialized")
 
         # Inform the receiver about the command to be executed
-        self.connection.send(self.command, size_of_chunck = len(self.cmd_name))
+        self.connection.send(
+            self.cmd_name, size_of_chunck = len(self.cmd_name))
 
         # Proceeding to the file sent
         t = time.time()
@@ -45,7 +46,7 @@ class SendFileCommand(Command):
                     break
 
                 bytes += sys.getsizeof(chunk)
-                self.logger.debug("[send_file_cmd] " + "Sending: " + chunk)
+                self.logger.debug("Sending: " + chunk)
                 byte_no = self.connection.send(chunk)
                 self.logger.debug("[send_file_cmd] " + "Sent " + str(byte_no)
                                   + " bytes.")
