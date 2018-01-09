@@ -10,15 +10,16 @@
 
 import sys
 from aiida.sharing.sharing_logging import SharingLoggingFactory
+from aiida.sharing.command import CommandHandler
+from aiida.sharing.command import Command
 
-
-class CommandHandler:
+class ServerCommandHandler(CommandHandler):
 
     def __init__(self):
         self.logger = SharingLoggingFactory.get_logger(
             SharingLoggingFactory.get_fullclass_name(self.__class__))
 
-    def manage(self):
+    def handle(self):
         self.logger.debug(
             "[share_handle_push] " + "sys.stdout.closed? " + str(
                 sys.stdout.closed))
@@ -38,7 +39,9 @@ class CommandHandler:
             sys.stdout.flush()
             return
 
-class Command:
+class ReceiveFileCommand(Command):
+
+    cmd_name = 'REC_FILE'
 
     logger = None
 
@@ -46,8 +49,7 @@ class Command:
         self.logger = SharingLoggingFactory.get_logger(
             SharingLoggingFactory.get_fullclass_name(self.__class__))
 
-    def receive_file(self):
-
+    def execute(self):
         self.logger.debug("[share_handle_push] " + "Reading the file size")
         # Read the size of the file
         file_size = int(sys.stdin.read(4))

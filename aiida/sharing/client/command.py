@@ -12,8 +12,9 @@ from aiida.sharing.sharing_logging import SharingLoggingFactory
 from aiida.common.exceptions import InvalidOperation
 from aiida.sharing.command import Command
 from aiida.sharing.client.connection import ConnectionClient
+from aiida.sharing.command import CommandHandler
 
-class CommandHandler:
+class ClientCommandHandler(CommandHandler):
 
     # The underlying connection to be used for the communication
     connection = None
@@ -21,13 +22,6 @@ class CommandHandler:
     # Needed information to establish the connection
     hostname = None
     key_path = None
-
-    # Available commands
-    SEND_FILE = 'SEND_FILE'
-    SEND_BUFF = 'SEND_BUFF'
-
-    # Set of commands
-    AVAILABLE_CMDS = set(SEND_FILE, SEND_BUFF)
 
     # Command logger
     logger = None
@@ -61,23 +55,15 @@ class CommandHandler:
         # Execute command
         cmd_obj.execute(**kwargs)
 
-    def cmd_selector(self, argument):
-        switcher = {
-            self.SEND_FILE : SendFileCommand(),
-        }
-        # Get the right send command
-        cmd_class = switcher.get(argument)
-        # Execute the method
-        return cmd_class()
-
 class SendFileCommand(Command):
+
+    cmd_name = 'SEND_FILE'
 
     filename = None
     connection = None
 
     def __init__(self, connection):
         super(SendFileCommand, self).__init__()
-        self.cmd_name = 'SEND_FILE'
         self.connection = connection
 
     def execute(self, filename):
