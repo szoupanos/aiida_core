@@ -9,16 +9,16 @@
 ###########################################################################
 
 from aiida.sharing.sharing_logging import SharingLoggingFactory
+from aiida.common.exceptions import InvalidOperation
+from aiida.sharing.command import Command
 
+# class CommandHandler:
+#
+#     def __init__(self):
+#         self.logger = SharingLoggingFactory.get_logger(
+#             SharingLoggingFactory.get_fullclass_name(self.__class__))
 
 class CommandHandler:
-
-    def __init__(self):
-        self.logger = SharingLoggingFactory.get_logger(
-            SharingLoggingFactory.get_fullclass_name(self.__class__))
-        
-
-class Command:
 
     # The underlying protocol to be used for the communication
     protocol = None
@@ -37,20 +37,10 @@ class Command:
     logger = None
 
     def __init__(self, channel, command, protocol):
-        from aiida.common.exceptions import InvalidOperation
-        from aiida.sharing.sharing_logging import SharingLoggingFactory
-
         # Initialising the logger
         self.logger = SharingLoggingFactory.get_logger('command_logger')
 
-        if channel is None or command is None:
-            self.logger.debug(
-                "[Command] " + "You must provide a command and a channel, exiting")
-            raise InvalidOperation("You must provide a command and a channel.")
-        if command not in self.AVAILABLE_CMDS:
-            self.logger.debug("[Command] " + "The command requested is not "
-                                         "supported, exiting")
-            raise InvalidOperation("The command requested is not supported.")
+
 
         self.channel = channel
         self.command = command
@@ -62,25 +52,44 @@ class Command:
         :param command:
         :return:
         """
-        # Inform the receiver about the command to be executed
-        self.send(self.channel, self.command, size_of_chunck = len(command))
+        if command not in self.AVAILABLE_CMDS:
+            self.logger.debug("[Command] " + "The command requested is not "
+                                         "supported, exiting")
+            raise InvalidOperation("The command requested is not supported.")
 
-        # Execute the command
-        self.send_cmd_selector(**kwargs)
+        # Create the command class
+        self.cmd_selector(**kwargs)
 
-    def send_cmd_selector(self, argument):
+    def cmd_selector(self, argument):
         switcher = {
-            self.SEND_FILE : self.send_file_cmd,
-            self.SEND_BUFF: self.send_buff_cmd,
+            self.SEND_FILE : SendFileCommand(),
         }
         # Get the right send command
-        send_cmd = switcher.get(argument)
+        cnd_class = switcher.get(argument)
         # Execute the method
-        return send_cmd()
+        return cnd_class()
 
-    def send_file_cmd(self, filename):
+class SendFileCommand(Command):
+
+    channel = None
+    filename = None
+
+    def __init__(self, channel):
+        super(SendFileCommand, self).__init__()
+        self.cmd_name = 'SEND_FILE'
+
+    def execute(self, connection, filename):
         import time
         import sys
+
+        if channel is None:
+            self.logger.debug(
+                "[Command] " + "You must provide a connection, exiting")
+            raise InvalidOperation("You must provide a connection.")
+
+        # Inform the receiver about the command to be executed
+        connection.send(self.command, size_of_chunck = len(command))
+
         # Proceeding to the file sent
         t = time.time()
         bytes = 0
@@ -100,6 +109,3 @@ class Command:
             logging.debug(
                 "[send_file_cmd] " + "Sending finished, closing file")
             f.close()
-
-    def send_buff_cmd(self, **kwargs):
-        pass
