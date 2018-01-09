@@ -11,20 +11,16 @@
 from aiida.sharing.sharing_logging import SharingLoggingFactory
 from aiida.common.exceptions import InvalidOperation
 from aiida.sharing.command import Command
-
-# class CommandHandler:
-#
-#     def __init__(self):
-#         self.logger = SharingLoggingFactory.get_logger(
-#             SharingLoggingFactory.get_fullclass_name(self.__class__))
+from aiida.sharing.client.connection import ConnectionClient
 
 class CommandHandler:
 
-    # The underlying protocol to be used for the communication
-    protocol = None
+    # The underlying connection to be used for the communication
+    connection = None
 
-    # Selected command
-    command = None
+    # Needed information to establish the connection
+    hostname = None
+    key_path = None
 
     # Available commands
     SEND_FILE = 'SEND_FILE'
@@ -36,59 +32,65 @@ class CommandHandler:
     # Command logger
     logger = None
 
-    def __init__(self, channel, command, protocol):
+    def __init__(self, hostname, key_path):
         # Initialising the logger
         self.logger = SharingLoggingFactory.get_logger('command_logger')
+        self.hostname = hostname
+        self.key_path = key_path
 
+    def __enter__(self):
+        if (not self.hostname is None) and (not self.key_path is None):
+            self.connection = ConnectionClient()
+            self.connection.open_connection(self.hostname, self.key_path)
+        return self
 
-
-        self.channel = channel
-        self.command = command
+    def __exit__(self, *exc):
+        if self.connection is not None:
+            self.connection.close_connection()
+        return False
 
     def execute(self, command, **kwargs):
-        """
-        This is the general command
-        :param channel:
-        :param command:
-        :return:
-        """
         if command not in self.AVAILABLE_CMDS:
             self.logger.debug("[Command] " + "The command requested is not "
                                          "supported, exiting")
             raise InvalidOperation("The command requested is not supported.")
 
         # Create the command class
-        self.cmd_selector(**kwargs)
+        cmd_class = self.cmd_selector(**kwargs)
+        cmd_obj = cmd_class(self.connection)
+        # Execute command
+        cmd_obj.execute(**kwargs)
 
     def cmd_selector(self, argument):
         switcher = {
             self.SEND_FILE : SendFileCommand(),
         }
         # Get the right send command
-        cnd_class = switcher.get(argument)
+        cmd_class = switcher.get(argument)
         # Execute the method
-        return cnd_class()
+        return cmd_class()
 
 class SendFileCommand(Command):
 
-    channel = None
     filename = None
+    connection = None
 
-    def __init__(self, channel):
+    def __init__(self, connection):
         super(SendFileCommand, self).__init__()
         self.cmd_name = 'SEND_FILE'
+        self.connection = connection
 
-    def execute(self, connection, filename):
+    def execute(self, filename):
         import time
         import sys
 
-        if channel is None:
+        if self.connection is None:
             self.logger.debug(
-                "[Command] " + "You must provide a connection, exiting")
-            raise InvalidOperation("You must provide a connection.")
+                "The connection is not initialized, exiting")
+            raise InvalidOperation("The connection is not initialized")
 
         # Inform the receiver about the command to be executed
-        connection.send(self.command, size_of_chunck = len(command))
+        self.connection.send(self.command, size_of_chunck = len(self.cmd_name))
 
         # Proceeding to the file sent
         t = time.time()
@@ -102,10 +104,10 @@ class SendFileCommand(Command):
 
                 bytes += sys.getsizeof(chunk)
                 self.logger.debug("[send_file_cmd] " + "Sending: " + chunk)
-                byte_no = session_channel.send(chunk)
+                byte_no = self.connection.send(chunk)
                 self.logger.debug("[send_file_cmd] " + "Sent " + str(byte_no)
                                   + " bytes.")
         finally:
-            logging.debug(
+            self.logger.debug(
                 "[send_file_cmd] " + "Sending finished, closing file")
             f.close()
