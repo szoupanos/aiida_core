@@ -38,5 +38,5 @@ class SharingLoggingFactory:
         return cls.__loggers[logger_name]
 
     @staticmethod
-    def get_fullclass_name():
-        return o.__module__ + "." + o.__class__.__name__
+    def get_fullclass_name(given_class):
+        return given_class.__module__ + "." + given_class.__class__.__name__

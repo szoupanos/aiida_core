@@ -9,10 +9,10 @@
 ###########################################################################
 
 import click
-import logging
 from aiida.cmdline.commands import share, verdi
 from aiida.cmdline.baseclass import VerdiCommandWithSubcommands
 from aiida.cmdline.commands.work import CONTEXT_SETTINGS
+from aiida.sharing.sharing_logging import SharingLoggingFactory
 
 class Share(VerdiCommandWithSubcommands):
     """
@@ -20,14 +20,14 @@ class Share(VerdiCommandWithSubcommands):
     """
 
     def __init__(self):
-        # logging.basicConfig(filename='/home/aiida/foo9/sharing_debug.log', level=logging.DEBUG)
-        # FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
-        # logging.basicConfig(format=FORMAT)
-        logging.basicConfig(
-            filename='/home/aiida/foo10/sharing_debug.log',
-            format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
-            datefmt='%d-%m-%Y:%H:%M:%S',
-            level=logging.DEBUG)
+        # # logging.basicConfig(filename='/home/aiida/foo9/sharing_debug.log', level=logging.DEBUG)
+        # # FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
+        # # logging.basicConfig(format=FORMAT)
+        # logging.basicConfig(
+        #     filename='/home/aiida/foo10/sharing_debug.log',
+        #     format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+        #     datefmt='%d-%m-%Y:%H:%M:%S',
+        #     level=logging.DEBUG)
 
         self.valid_subcommands = {
             # 'sub_com_a': (self.cli, self.complete_none),
@@ -41,6 +41,9 @@ class Share(VerdiCommandWithSubcommands):
 
     def cli(self, *args):
         verdi()
+
+logger = SharingLoggingFactory.get_logger(
+    SharingLoggingFactory.get_fullclass_name(Share))
 
 # @share.command('name_of_subcommand', context_settings=CONTEXT_SETTINGS)
 
@@ -109,7 +112,18 @@ def share_push():
     Push the local nodes to a remote repository, indicated by the remote
     profile name.
     """
-    logging.debug('command: share push')
+    logger.debug('command: share push')
+    from aiida.sharing.client.command_handler import ClientCommandHandler
+    from aiida.sharing.client.command import SendFileCommand
+
+    ClientCommandHandler().handle(SendFileCommand.cmd_name)
+
+def share_push_old():
+    """
+    Push the local nodes to a remote repository, indicated by the remote
+    profile name.
+    """
+    logger.debug('command: share push')
     # paramiko_push()
     paramiko_push_file('/home/aiida/foo10/sample.txt')
 
@@ -172,8 +186,9 @@ class non_block_stdin(object):
 @share.command('handle_push')
 # @click.argument('input', type=click.File('rb'))
 def share_handle_push():
-    pass
-
+    from aiida.sharing.server.command import (
+        ServerCommandHandler, ReceiveFileCommand)
+    ServerCommandHandler().handle(ReceiveFileCommand.cmd_name)
 
 def server_handle_push():
     """
@@ -181,7 +196,7 @@ def server_handle_push():
     specified remote AiiDA instance.
     """
     import sys
-    logging.debug("[share_handle_push] " + 'command: share share_accept_push')
+    logger.debug("[share_handle_push] " + 'command: share share_accept_push')
     # logging.info('So should this')
     # logging.warning('And this, too')
     # click.echo('command: share share_accept_push')
@@ -189,18 +204,18 @@ def server_handle_push():
     # init_non_block_stdin()
     try:
         while True:
-            logging.debug(
+            logger.debug(
                 "[share_handle_push] " + "sys.stdout.closed? " + str(sys.stdout.closed))
-            logging.debug("[share_handle_push] " + "Reading message size")
+            logger.debug("[share_handle_push] " + "Reading message size")
             msg_size = int(sys.stdin.read(4))
-            logging.debug("[share_handle_push] " + "Reply that you read message size")
+            logger.debug("[share_handle_push] " + "Reply that you read message size")
             sys.stdout.write("OK")
             sys.stdout.flush()
-            logging.debug("[share_handle_push] " + "Reading message")
+            logger.debug("[share_handle_push] " + "Reading message")
             msg = sys.stdin.read(msg_size)
-            logging.debug("[share_handle_push] " + "Read" + msg)
+            logger.debug("[share_handle_push] " + "Read" + msg)
             if msg == "EXIT":
-                logging.debug("[share_handle_push] " + "Received an exit command, exiting")
+                logger.debug("[share_handle_push] " + "Received an exit command, exiting")
                 sys.stdout.write("OK")
                 sys.stdout.flush()
                 break
@@ -209,56 +224,56 @@ def server_handle_push():
                 sys.stdout.write("OK")
                 sys.stdout.flush()
 
-                logging.debug("[share_handle_push] " + "Reading the file size")
+                logger.debug("[share_handle_push] " + "Reading the file size")
                 # Read the size of the file
                 file_size = int(sys.stdin.read(4))
                 sys.stdout.write("OK")
                 sys.stdout.flush()
 
                 bytes_read = 0
-                logging.debug("[share_handle_push] " + "Reading the file and "
+                logger.debug("[share_handle_push] " + "Reading the file and "
                                                        "storing it locally.")
                 with open('/home/aiida/foo10/output_file.bin', 'w') as f:
                     while bytes_read < file_size:
                         if file_size - bytes_read > 1024:
-                            logging.debug("[share_handle_push] " +
+                            logger.debug("[share_handle_push] " +
                                           "Reading 1024 bytes")
                             chunk = sys.stdin.read(1024)
                         else:
-                            logging.debug("[share_handle_push] " +
+                            logger.debug("[share_handle_push] " +
                                           "Reading " + str(file_size - bytes_read) + " bytes")
                             chunk = sys.stdin.read(file_size - bytes_read)
                         f.write(chunk)
-                        logging.debug("[share_handle_push] " +
+                        logger.debug("[share_handle_push] " +
                                       "Received: " + str(chunk))
-                        logging.debug("[share_handle_push] " +
+                        logger.debug("[share_handle_push] " +
                                       "Chunk length: " + str(len(chunk)))
                         bytes_read += len(chunk)
 
                 # Sending OK that the file was read
-                logging.debug("[share_handle_push] " +
+                logger.debug("[share_handle_push] " +
                               "Sending OK that the file was read")
                 sys.stdout.write("OK")
                 sys.stdout.flush()
 
     except Exception as e:
-        logging.debug("[share_handle_push] " + "Error occured: " + e)
+        logger.debug("[share_handle_push] " + "Error occured: " + e)
         if e.__cause__:
-            logging.debug("[share_handle_push] " + "Cause: " + e.__cause__)
+            logger.debug("[share_handle_push] " + "Cause: " + e.__cause__)
         raise
 
     # sys.stdout.flush()
-    logging.debug("[share_handle_push] " + "Finished while loop. Exiting")
+    logger.debug("[share_handle_push] " + "Finished while loop. Exiting")
 
 def wait_for_ok(session_channel):
-    logging.debug("[paramiko_push_file] " + "wait for the OK reply")
+    logger.debug("[paramiko_push_file] " + "wait for the OK reply")
     while True:
         rec_msg = session_channel.recv(1024)
-        logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
+        logger.debug("[paramiko_push_file] " + "Received" + rec_msg)
         if rec_msg == "OK":
             break
         if session_channel.exit_status_ready():
-            logging.debug("[paramiko_push_file] " +
+            logger.debug("[paramiko_push_file] " +
                           "Remote process has exited, exiting too")
             return -1
 
@@ -289,23 +304,23 @@ def paramiko_push_file(filename):
     # client.connect('ubuntu-aiida-vm1.epfl.ch')
     # client.connect('localhost')
     # client.connect('theossrv2.epfl.ch')
-    logging.debug("[paramiko_push_file] " + "Connected")
+    logger.debug("[paramiko_push_file] " + "Connected")
     transport = client.get_transport()
-    logging.debug("[paramiko_push_file] " + "Transport got")
+    logger.debug("[paramiko_push_file] " + "Transport got")
     session_channel = transport.open_session()
-    logging.debug("[paramiko_push_file] " + "Session open")
+    logger.debug("[paramiko_push_file] " + "Session open")
 
     session_channel.exec_command(command='cat')
 
 
-    logging.debug("[paramiko_push_file] " +
+    logger.debug("[paramiko_push_file] " +
                   "Sending the size of the bytes to read")
     session_channel.send("0009")
     if wait_for_ok(session_channel) == -1:
         return
 
     # sending the command to be executed
-    logging.debug("[paramiko_push_file] " +
+    logger.debug("[paramiko_push_file] " +
                   "Informing that the command to be executed is a FILE_SEND")
 
     session_channel.send("FILE_SEND")
@@ -313,14 +328,14 @@ def paramiko_push_file(filename):
     if wait_for_ok(session_channel) == -1:
         return
 
-    logging.debug("[paramiko_push_file] " + "Proceeding to the file sent")
+    logger.debug("[paramiko_push_file] " + "Proceeding to the file sent")
 
     file_size = os.path.getsize(filename)
-    logging.debug("[paramiko_push_file] " + "Sending the file size (" +
+    logger.debug("[paramiko_push_file] " + "Sending the file size (" +
                   str(file_size) + " bytes)")
     session_channel.send(format(file_size, '4d'))
 
-    logging.debug("[paramiko_push_file] " + "wait for the OK to send the file")
+    logger.debug("[paramiko_push_file] " + "wait for the OK to send the file")
     if wait_for_ok(session_channel) == -1:
         return
 
@@ -335,49 +350,49 @@ def paramiko_push_file(filename):
                 break
 
             bytes += sys.getsizeof(chunk)
-            logging.debug("[paramiko_push_file] " + "Sending: " + chunk)
+            logger.debug("[paramiko_push_file] " + "Sending: " + chunk)
             byte_no = session_channel.send(chunk)
-            logging.debug("[paramiko_push_file] " + "Sent " + str(byte_no)
+            logger.debug("[paramiko_push_file] " + "Sent " + str(byte_no)
                           + " bytes.")
     finally:
-        logging.debug("[paramiko_push_file] " + "Sending finished, closing file")
+        logger.debug("[paramiko_push_file] " + "Sending finished, closing file")
         f.close()
 
     tottime = time.time() - t
-    logging.debug("[paramiko_push_file] " + "Time spent: {} s, throughput: {} kB/s.".format(
+    logger.debug("[paramiko_push_file] " + "Time spent: {} s, throughput: {} kB/s.".format(
         tottime, bytes / 1000 * tottime))
 
-    logging.debug("[paramiko_push_file] " + "wait for the OK that the file "
+    logger.debug("[paramiko_push_file] " + "wait for the OK that the file "
                                             "was sent successfully.")
 
     while not session_channel.exit_status_ready():
         rec_msg = session_channel.recv(1024)
-        logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
+        logger.debug("[paramiko_push_file] " + "Received" + rec_msg)
         if rec_msg == "OK":
             break
 
 
-    logging.debug("[paramiko_push_file] " +
+    logger.debug("[paramiko_push_file] " +
                   "Sending the size of the bytes to read")
     session_channel.send("0004")
     if wait_for_ok(session_channel) == -1:
         return
-    logging.debug("[paramiko_push_file] " +
+    logger.debug("[paramiko_push_file] " +
                   "Informing that the command to be executed is an EXIT")
     session_channel.send("EXIT")
     # wait for the OK reply
-    logging.debug("[paramiko_push_file] " + "wait for the OK reply")
+    logger.debug("[paramiko_push_file] " + "wait for the OK reply")
     while not session_channel.exit_status_ready():
         rec_msg = session_channel.recv(1024)
-        logging.debug("[paramiko_push_file] " + "Received" + rec_msg)
+        logger.debug("[paramiko_push_file] " + "Received" + rec_msg)
         if rec_msg == "OK":
             break
 
     # Closing channels and exiting
-    logging.debug("[paramiko_push_file] " + "Closing chanel")
+    logger.debug("[paramiko_push_file] " + "Closing chanel")
     session_channel.close()
     client.close()
-    logging.debug("[paramiko_push_file] " + "Exiting")
+    logger.debug("[paramiko_push_file] " + "Exiting")
 
 
 def paramiko_push():

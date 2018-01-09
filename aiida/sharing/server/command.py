@@ -9,35 +9,7 @@
 ###########################################################################
 
 import sys
-from aiida.sharing.sharing_logging import SharingLoggingFactory
-from aiida.sharing.command import CommandHandler
 from aiida.sharing.command import Command
-
-class ServerCommandHandler(CommandHandler):
-
-    def __init__(self):
-        self.logger = SharingLoggingFactory.get_logger(
-            SharingLoggingFactory.get_fullclass_name(self.__class__))
-
-    def handle(self):
-        self.logger.debug(
-            "[share_handle_push] " + "sys.stdout.closed? " + str(
-                sys.stdout.closed))
-        self.logger.debug("[share_handle_push] " + "Reading message size")
-        msg_size = int(sys.stdin.read(4))
-        self.logger.debug(
-            "[share_handle_push] " + "Reply that you read message size")
-        sys.stdout.write("OK")
-        sys.stdout.flush()
-        self.logger.debug("[share_handle_push] " + "Reading message")
-        msg = sys.stdin.read(msg_size)
-        self.logger.debug("[share_handle_push] " + "Read" + msg)
-        if msg == "EXIT":
-            self.logger.debug(
-                "[share_handle_push] " + "Received an exit command, exiting")
-            sys.stdout.write("OK")
-            sys.stdout.flush()
-            return
 
 class ReceiveFileCommand(Command):
 
@@ -46,8 +18,7 @@ class ReceiveFileCommand(Command):
     logger = None
 
     def __init__(self):
-        self.logger = SharingLoggingFactory.get_logger(
-            SharingLoggingFactory.get_fullclass_name(self.__class__))
+        super(ReceiveFileCommand, self).__init__()
 
     def execute(self):
         self.logger.debug("[share_handle_push] " + "Reading the file size")
