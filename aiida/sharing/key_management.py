@@ -22,12 +22,17 @@ import sshpubkeys
 
 class SSHAuthorizedKeysEntry(sshpubkeys.SSHKey):
     def get_comment(self):
-        return ' '.join(self.keydata.split(' ')[2:]).strip()
+        return ' '.join(self.keydata.split('= ')[1:]).strip()
 
     def __repr__(self):
-        reprstr = '{hash}: {self.bits} bit {self.key_type} ({comment})'
-        return reprstr.format(self=self,
-                              hash=self.hash(), comment=self.get_comment())
+        reprstr = ('{comment}: {self.bits} bit {self.key_type} '
+                   '({options_raw})')
+        return reprstr.format(
+            self=self,
+            options_raw=(self.options_raw
+            if self.options_raw is not None else "-"),
+            comment=self.get_comment()
+        )
 
 class SSHAuthorizedKeysFile():
     # This class makes the relatively acceptable assumption that
@@ -78,7 +83,6 @@ class SSHAuthorizedKeysFile():
         self.keys.append(key)
 
     def get_keys(self):
-        # return self.keys.keys()
         return self.keys
 
 

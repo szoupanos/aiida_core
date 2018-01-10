@@ -35,7 +35,7 @@ class Share(VerdiCommandWithSubcommands):
             'authorize': (self.cli, self.complete_none),
             'deauthorize': (self.cli, self.complete_none),
             'push': (self.cli, self.complete_none),
-            'handle_push': (self.cli, self.complete_none),
+            'sharing_handler': (self.cli, self.complete_none),
             'pull': (self.cli, self.complete_none),
         }
 
@@ -143,59 +143,12 @@ def share_pull():
     click.echo('command: share deauthorize')
 
 
-
-class non_block_stdin(object):
-
-    old_settings = None
-
-    def __enter__(self):
-        import termios
-        import sys
-
-        global old_settings
-        old_settings = termios.tcgetattr(sys.stdin)
-        new_settings = termios.tcgetattr(sys.stdin)
-        new_settings[3] = new_settings[3] & ~(
-        termios.ECHO | termios.ICANON)  # lflags
-        new_settings[6][termios.VMIN] = 0  # cc
-        new_settings[6][termios.VTIME] = 0  # cc
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, new_settings)
-
-    def __exit__(self, type, value, traceback):
-        import termios
-        import sys
-
-        global old_settings
-        if old_settings:
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-
-# old_settings=None
-#
-# def init_non_block_stdin():
-#     import termios
-#     import sys
-#     global old_settings
-#     old_settings = termios.tcgetattr(sys.stdin)
-#     new_settings = termios.tcgetattr(sys.stdin)
-#     new_settings[3] = new_settings[3] & ~(termios.ECHO | termios.ICANON) # lflags
-#     new_settings[6][termios.VMIN] = 0  # cc
-#     new_settings[6][termios.VTIME] = 0 # cc
-#     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, new_settings)
-#
-# def term_non_block_stdin():
-#     import termios
-#     import sys
-#     global old_settings
-#     if old_settings:
-#       termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-
-@share.command('handle_push')
+@share.command('sharing_handler')
 # @click.argument('input', type=click.File('rb'))
-def share_handle_push():
-    from aiida.sharing.server.command import ReceiveFileCommand
+def sharing_handler():
     from aiida.sharing.server.command_handler import ServerCommandHandler
 
-    logger.debug('command: share share_accept_push')
+    logger.debug('command: share sharing_handler')
     with ServerCommandHandler() as sch:
         sch.handle()
 

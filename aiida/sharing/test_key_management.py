@@ -30,6 +30,13 @@ class SSHAuthorizedKeysGoodUsersTest(unittest.TestCase):
                         '1xEivuixKRVT6OCg7SDySJHVzqFnQkJSXwwcCEF0FdTAA0VaidIpgDhXdj9UFzcKfgo3H' + \
                         'f0R5bLAZXn7UQjNWh3M8v+K9cUVIWBukIoLlzs4zE= dummy debugging key 2'
 
+    valid_dummy_key_3 = 'command="source /home/aiida/aiidapy/bin/activate; ' \
+                        'verdi share handle_push", ' \
+                        'no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ' \
+                        'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQDmOXORyDk9dZSYxudLF'  \
+                        '1xEivuixKRVT6OCg7SDySJHVzqFnQkJSXwwcCEF0FdTAA0VaidIpgDhXdj9UFzcKfgo3H'  \
+                        'f0R5bLAZXn7UQjNWh3M8v+K9cUVIWBukIoLlzs4zE= dummy debugging key 3'
+
     class dummy_user():
         pw_name = 'toresbe'
         pw_passwd = 'x'
@@ -116,19 +123,16 @@ class SSHAuthorizedKeysGoodUsersTest(unittest.TestCase):
         self.failUnless(os.path.isdir(self.dummy_user.pw_dir + '/.ssh'))
 
     def testKeyListing(self):
-        f = SSHAuthorizedKeysFile('yada')
-        f.append(self.valid_dummy_key_1)
-        f.append(self.valid_dummy_key_2)
-        f = SSHAuthorizedKeysFile('yada')
-        k = f.get_keys()
-        # print k[0].comment()
-        k0 = k[0]
-        print k0.hash()
-        print k0.comment
-        print k0.get_comment()
-        print k0.
-        print k
-        # print f.get_keys()
+        f = SSHAuthorizedKeysFile('aiida')
+        keys = [self.valid_dummy_key_1, self.valid_dummy_key_2,
+                self.valid_dummy_key_3]
+        for key in keys:
+            f.append(key)
+
+        f = SSHAuthorizedKeysFile('aiida')
+        for k in f.get_keys():
+            self.assertIn(str(k.keydata).strip(), keys,
+                          "Key " + k.keydata + " not found in " + str(keys))
 
 class SSHAuthorizedKeysBadUsersTest(unittest.TestCase):
     # good to make sure
