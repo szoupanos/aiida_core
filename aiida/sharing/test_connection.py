@@ -14,8 +14,8 @@ class ConnectionTest(unittest.TestCase):
     """
     Tests for the Protocol class.
     """
-    @staticmethod
-    def test_open_connection():
+    @unittest.skip("Needs more work")
+    def test_open_connection(self):
         """
         Simple test that check that the connection is opened and closed
         properly
@@ -27,9 +27,9 @@ class ConnectionTest(unittest.TestCase):
         finally:
             conn.close_connection()
 
-    # This needs more work on send & receive
-    @staticmethod
-    def test_send_receive():
+    # # This needs more work on send & receive
+    @unittest.skip("Needs more work")
+    def test_send_receive(self):
         from aiida.sharing.client.connection_client import ConnectionClient
         prot = ConnectionClient()
         msg = "This is a message to send"

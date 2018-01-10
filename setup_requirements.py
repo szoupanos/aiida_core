@@ -64,7 +64,9 @@ install_requires = [
     # Requirements for verdi shell (version of ipython non enforced, because
     # there are people who still prefer version 4 rather than the latest)
     'ipython<6.0',
-    'scipy<1.0.0' # At this moment the install of 1.0.0 release is broken
+    'scipy<1.0.0', # At this moment the install of 1.0.0 release is broken
+    #Requirement for sharing
+    'sshpubkeys'
 ]
 
 extras_require = {
