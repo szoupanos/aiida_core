@@ -192,9 +192,12 @@ class non_block_stdin(object):
 @share.command('handle_push')
 # @click.argument('input', type=click.File('rb'))
 def share_handle_push():
-    from aiida.sharing.server.command import (
-        ServerCommandHandler, ReceiveFileCommand)
-    ServerCommandHandler().handle(ReceiveFileCommand.cmd_name)
+    from aiida.sharing.server.command import ReceiveFileCommand
+    from aiida.sharing.server.command_handler import ServerCommandHandler
+
+    logger.debug('command: share share_accept_push')
+    with ServerCommandHandler() as sch:
+        sch.handle()
 
 def server_handle_push():
     """

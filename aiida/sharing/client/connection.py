@@ -28,7 +28,7 @@ class ConnectionClient(Connection):
         self.logger.debug("wait for the OK reply")
         while True:
             rec_msg = self.channel.recv(self.BUFFER_SIZE)
-            self.logger.debug("Received" + rec_msg)
+            self.logger.debug("Received: " + rec_msg)
             if rec_msg == self.OK_MSG:
                 break
             if self.channel.exit_status_ready():
@@ -66,7 +66,7 @@ class ConnectionClient(Connection):
         byte_no = self.channel.send(chunk)
         self.logger.debug("Sent " + str(byte_no) + " bytes.")
 
-        self.logger.debug("wait for the OK to send the file")
+        self.logger.debug("wait for the OK that chunk was received OK")
         if self.wait_for_ok() == 1:
             return 1
 
@@ -79,7 +79,7 @@ class ConnectionClient(Connection):
         self.channel.send(self.OK_MSG)
         self.logger.debug("Reading message")
         msg = self.channel.recv(chunk_size)
-        self.logger.debug("Read" + msg)
+        self.logger.debug("Read: " + msg)
 
     def open_connection(self, hostname, key_path):
         """

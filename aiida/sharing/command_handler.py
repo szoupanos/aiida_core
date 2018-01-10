@@ -21,6 +21,11 @@ class CommandHandler:
     SEND_BUFF = 'SEND_BUFF'
     REC_FILE = ReceiveFileCommand.cmd_name
 
+    # Command pairs
+    CMD_PAIRS = {
+        SEND_FILE: REC_FILE
+    }
+
     # Set of commands
     AVAILABLE_CMDS = set((SEND_FILE, SEND_BUFF))
 

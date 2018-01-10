@@ -48,9 +48,7 @@ class SendFileCommand(Command):
                 bytes += sys.getsizeof(chunk)
                 self.logger.debug("Sending: " + chunk)
                 byte_no = self.connection.send(chunk)
-                self.logger.debug("[send_file_cmd] " + "Sent " + str(byte_no)
-                                  + " bytes.")
+                self.logger.debug("Sent " + str(byte_no) + " bytes.")
         finally:
-            self.logger.debug(
-                "[send_file_cmd] " + "Sending finished, closing file")
+            self.logger.debug("Sending finished, closing file")
             f.close()

@@ -8,37 +8,35 @@
 # For further information please visit http://www.aiida.net               #
 ###########################################################################
 
-import logging
 import sys
 from aiida.sharing.connection import Connection
 
 class ConnectionServer(Connection):
 
     def __init__(self):
-        pass
+        super(ConnectionServer, self).__init__()
 
     def send(self, chunk, size_of_chunck = None):
         bytes_to_send = size_of_chunck
         if size_of_chunck is None:
             bytes_to_send = sys.getsizeof(chunk)
 
-        logging.debug("[send] " + "Sending the chunk size (" +
+        self.logger.debug("Sending the chunk size (" +
                       str(bytes_to_send) + " bytes)")
         sys.stdout.write(format(bytes_to_send,
                             str(self.BYTES_FOR_CHUNK_SIZE_MSG) + 'd'))
         sys.stdout.flush()
 
-        logging.debug("[send] " + "wait for the OK to send the chunk.")
+        self.logger.debug("wait for the OK to send the chunk.")
         if self.wait_for_ok() == -1:
             return 1
 
         sys.stdout.write(chunk)
         sys.stdout.flush()
-        logging.debug("[send] " + "Sent " + str(sys.getsizeof(chunk)) +
+        self.logger.debug("Sent " + str(sys.getsizeof(chunk)) +
                       " bytes.")
 
-        logging.debug(
-            "[send] " + "wait for the OK to send the file")
+        self.logger.debug("wait for the OK to send the file")
         if self.wait_for_ok() == 1:
             return 1
 
@@ -51,27 +49,26 @@ class ConnectionServer(Connection):
         data.
         :return: The message (chunk) received.
         """
-        logging.debug("[receive] " + "Reading message size")
+        self.logger.debug("Reading message size")
         msg_size = int(sys.stdin.read(self.BYTES_FOR_CHUNK_SIZE_MSG))
-        logging.debug("[receive] " + "Reply that you read message size")
+        self.logger.debug("Reply that you read message size")
         sys.stdout.write(self.OK_MSG)
         sys.stdout.flush()
-        logging.debug("[receive] " + "Reading message")
+        self.logger.debug("Reading message")
         msg = sys.stdin.read(msg_size)
-        logging.debug("[receive] " + "Read" + msg)
+        self.logger.debug("Read: " + msg)
 
         return msg
 
     def wait_for_ok(self):
-        logging.debug("[wait_for_ok] " + "wait for the OK reply")
+        self.logger.debug("wait for the OK reply")
         while True:
             rec_msg = sys.stdin.read(1024)
-            logging.debug("[wait_for_ok] " + "Received" + rec_msg)
+            self.logger.debug("Received: " + rec_msg)
             if rec_msg == self.OK_MSG:
                 break
             if sys.stdin.closed:
-                logging.debug("[wait_for_ok] " +
-                              "Channel is closed, exiting.")
+                self.logger.debug("Channel is closed, exiting.")
                 return 1
 
         return 0

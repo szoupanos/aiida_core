@@ -30,6 +30,8 @@ class SharingLoggingFactory:
                 '[%(name)s:%(funcName)s] %(message)s')
             hdlr.setFormatter(formatter)
             logger.addHandler(hdlr)
+            # Do not propagate to console
+            logger.propagate = False
             logger.setLevel(logging.DEBUG)
             cls.__loggers[logger_name] = logger
             return logger
