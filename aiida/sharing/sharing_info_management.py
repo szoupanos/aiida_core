@@ -38,6 +38,7 @@ class SharingInfoManagement:
         "properties": {
             "user_info": {
                 "type": "array",
+                "uniqueItems": True,
                 "items": {
                     "type": "object",
                     "required": ["username", "key", "profiles"],
@@ -59,7 +60,6 @@ class SharingInfoManagement:
                             }
                         }
                     }
-
                 }
             }
         }
@@ -71,7 +71,6 @@ class SharingInfoManagement:
 
 
     def load_conf(self):
-        print self.conf_filepath
         with open(self.conf_filepath, "r") as jsonFile:
             conf = json.load(jsonFile)
             try:
@@ -93,8 +92,41 @@ class SharingInfoManagement:
             json.dump(conf, jsonFile)
 
     def add_user(self, conf, username, key):
-        pass
-        # if conf[self.USER_INFO]
+        if (len(conf[self.USER_INFO]) == 0 or
+                username not in self.get_users(conf)):
+            conf[self.USER_INFO].append({
+                self.USERNAME: username,
+                self.KEY: key,
+                self.PROFILES: list()
+            })
+            return 0
 
-if __name__ == "__main__":
-    print SharingInfoManagement().load_conf()
+        return 1
+
+    def del_user(self, conf, username):
+        if len(conf[self.USER_INFO]) == 0:
+           return 1
+
+        users = self.get_users(conf)
+        if username not in users:
+            return 1
+
+        pos = users.index(username)
+        conf[self.USER_INFO].pop(pos)
+
+        return 0
+
+    def get_users(self, conf):
+        return [_[self.USERNAME] for _ in conf[self.USER_INFO]]
+
+    def _get_user_info(self, conf, username):
+        for user_info in conf[self.USER_INFO]:
+            if user_info[self.USERNAME] == username:
+                return user_info
+        return None
+
+    def update_user_rights(self, conf, username, repository, new_rights):
+        pass
+
+    def update_user_key(self, conf, username, new_key):
+        pass
