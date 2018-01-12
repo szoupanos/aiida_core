@@ -66,7 +66,8 @@ install_requires = [
     'ipython<6.0',
     'scipy<1.0.0', # At this moment the install of 1.0.0 release is broken
     #Requirement for sharing
-    'sshpubkeys'
+    'sshpubkeys>=2.2.0',
+    'jsonschema>=2.6.0'
 ]
 
 extras_require = {
