@@ -31,30 +31,37 @@ class SharingInfoManagement:
     PROFILE_NAME = "profile_name"
     PERMISSION = "permission"
 
+    # Available profile rights
+    READ_RIGHT = "Read"
+    WRITE_RIGHT = "Write"
+    NO_RIGHT = "None"
+    AVAIL_PROF_RIGHTS = [READ_RIGHT, WRITE_RIGHT, NO_RIGHT]
+
     # The schema of the JSON file containing the sharing information
     schema = {
         "type": "object",
-        "required": ["user_info"],
+        "required": [USER_INFO],
         "properties": {
-            "user_info": {
+            USER_INFO: {
                 "type": "array",
                 "uniqueItems": True,
                 "items": {
                     "type": "object",
-                    "required": ["username", "key", "profiles"],
+                    "required": [USERNAME, KEY, PROFILES],
                     "properties": {
-                        "username": { "type": "string" },
-                        "key": { "type": "string" },
-                        "profiles": {
+                        USERNAME: { "type": "string" },
+                        KEY: { "type": "string" },
+                        PROFILES: {
                             "type": "array",
                             "items": {
                                 "type": "object",
-                                "required": ["profile_name", "permission"],
+                                "required": [PROFILE_NAME, PERMISSION],
                                 "properties": {
-                                    "profile_name": {"type": "string"},
-                                    "permission": {
+                                    PROFILE_NAME: {"type": "string"},
+                                    PERMISSION: {
                                         "type": "string",
-                                        "enum": ["read", "write", "none"]
+                                        "enum": [READ_RIGHT, WRITE_RIGHT,
+                                                 NO_RIGHT]
                                     }
                                 }
                             }
@@ -125,8 +132,26 @@ class SharingInfoManagement:
                 return user_info
         return None
 
-    def update_user_rights(self, conf, username, repository, new_rights):
-        pass
+    def update_user_rights(self, conf, username, profile, new_rights):
+        if new_rights not in self.AVAIL_PROF_RIGHTS:
+            return 0
+
+        user_info = self._get_user_info(conf, username)
+        if user_info is None:
+            return 1
+
+        for prof in user_info[self.PROFILES]:
+            if prof[self.PROFILE_NAME] == profile:
+                prof[self.PERMISSION] = new_rights
+                return 0
+
+        return 1
 
     def update_user_key(self, conf, username, new_key):
-        pass
+        user_info = self._get_user_info(conf, username)
+        if user_info is None:
+            return 1
+
+        user_info[self.KEY] = new_key
+
+        return 1
