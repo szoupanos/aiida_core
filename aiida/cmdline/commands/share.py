@@ -89,7 +89,6 @@ def share_user_remove(username):
     """
     Remove a sharing AiiDA user.
     """
-    click.echo('command: share user remove')
     sim = SharingInfoManagement()
     conf = sim.load_conf()
     if sim.del_user(conf, username) == 0:
@@ -109,7 +108,7 @@ def share_user_list(verbose):
     sim = SharingInfoManagement()
     conf = sim.load_conf()
     users = sim.get_users(conf)
-    click.echo("The following sharing users were found")
+    click.echo("The following sharing users were found:")
     for user in users:
         click.echo("> " + user)
         if verbose:
@@ -129,8 +128,11 @@ def share_authorize(username, profile, new_permissions):
     """
     Allow an AiIDA sharing user to read or write to a specific repository.
     """
-    click.echo('command: share authorize')
     sim = SharingInfoManagement()
+    if not new_permissions in [sim.READ_RIGHT, sim.WRITE_RIGHT]:
+        click.echo('Only the following permisions are accepted: ' +
+                   sim.READ_RIGHT + ', ' + sim.WRITE_RIGHT)
+        return
     conf = sim.load_conf()
     res = sim.update_user_rights(conf, username, profile, new_permissions)
     if res == 0:
@@ -138,17 +140,27 @@ def share_authorize(username, profile, new_permissions):
         click.echo('User permissions changed successfully')
     elif res == 1:
         click.echo('The given permissions are not valid. The choices are '
-                   + str(sim.AVAIL_PROF_RIGHTS))
+                   + sim.READ_RIGHT + ', ' + sim.WRITE_RIGHT)
     elif res == 2:
         click.echo('User ' + username + ' doesn\'t exist')
 
 @share.command('deauthorize')
-def share_deauthorize():
+@click.argument('username')
+@click.argument('profile')
+def share_deauthorize(username, profile):
     """
     Remove access to a specific repository from a user.
     """
-    click.echo('command: share deauthorize')
-
+    sim = SharingInfoManagement()
+    conf = sim.load_conf()
+    res = sim.update_user_rights(conf, username, profile, sim.NO_RIGHT)
+    if res == 0:
+        sim.save_conf(conf)
+        click.echo('User permissions changed successfully')
+    elif res == 2:
+        click.echo('User ' + username + ' doesn\'t exist')
+    else:
+        click.echo('Unknown error')
 
 @share.command('push')
 def share_push():
