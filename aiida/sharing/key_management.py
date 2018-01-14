@@ -19,6 +19,9 @@ import os
 import pwd
 import sshpubkeys
 
+AIIDA_SHARING_CMD = ('command="source /home/aiida/aiidapy/bin/activate; '
+                     'verdi -p {} share handle_push",no-port-forwarding,'
+                     'no-X11-forwarding,no-agent-forwarding,no-pty ')
 
 class SSHAuthorizedKeysEntry(sshpubkeys.SSHKey):
     def get_comment(self):
@@ -85,6 +88,42 @@ class SSHAuthorizedKeysFile():
     def get_keys(self):
         return self.keys
 
+    def create_sharing_entry(self, key_hash, username, profile):
+        # Create a new key according the AiiDA sharing standards
+        # These will be command + ssh_options + provided_pure_ssh_key +
+        # username@repository as options
+        full_key = (AIIDA_SHARING_CMD.format(profile) + key_hash + " " +
+                    username + "@" + profile)
+        ssh_key = SSHAuthorizedKeysEntry(keydata=full_key, strict_mode = True)
+
+        # print "====>" + ssh_key.keydata
+        # print(ssh_key.bits)  # 768
+        # print(ssh_key.hash_md5())  # 56:84:1e:90:08:3b:60:c7:29:70:5f:5e:25:a6:3b:86
+        # print(ssh_key.hash_sha256())  # SHA256:xk3IEJIdIoR9MmSRXTP98rjDdZocmXJje/28ohMQEwM
+        # print(ssh_key.hash_sha512())  # SHA512:1C3lNBhjpDVQe39hnyy+xvlZYU3IPwzqK1rVneGavy6O3/ebjEQSFvmeWoyMTplIanmUK1hmr9nA8Skmj516HA
+        # print(ssh_key.comment)  # ojar@ojar-laptop
+        # print(ssh_key.options_raw)  # None (string of optional options at the beginning of public key)
+        # print(ssh_key.options)  # None (options as a dictionary, parsed and validated), strict_mode=True)
+        #
+        # print "TTTTTT " + ssh_key.keydata
+
+        # Store the SSH key to the authorized key file
+        with open(self.filename, 'a') as key_file:
+            key_file.write(ssh_key.keydata + '\n')
+        self.keys.append(ssh_key)
+
+    def delete_sharing_entry(self, username, profile):
+        """
+        To be created
+        :param username:
+        :param profile:
+        :return:
+        """
+        with open(self.filename, 'w') as key_file:
+            for key in self.keys:
+                if username + "@" + profile == key.comment:
+                    continue
+                key_file.write(key.keydata + '\n')
 
     def __getitem__(self, key):
         return self.keys[key]

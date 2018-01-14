@@ -11,9 +11,9 @@
 import click
 from aiida.cmdline.commands import share, verdi
 from aiida.cmdline.baseclass import VerdiCommandWithSubcommands
-from aiida.cmdline.commands.work import CONTEXT_SETTINGS
 from aiida.sharing.sharing_logging import SharingLoggingFactory
 from aiida.sharing.sharing_info_management import SharingInfoManagement
+from aiida.sharing.key_management import SSHAuthorizedKeysFile
 
 class Share(VerdiCommandWithSubcommands):
     """
@@ -128,6 +128,31 @@ def share_authorize(username, profile, new_permissions):
     """
     Allow an AiIDA sharing user to read or write to a specific repository.
     """
+    f = SSHAuthorizedKeysFile('aiida')
+    for key in f.get_keys():
+        print key
+
+    print "============================"
+
+    f.create_sharing_entry(
+
+        "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQCxO38tKAJXIs9ivPxt7AY"
+        "dfybgtAR1ow3Qkb9GPQ6wkFHQqcFDe6faKCxH6iDRteo4D8L8B"
+        "xwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrh"
+        "H1pON6P0="
+        , username, "sqla2")
+
+
+
+
+    from aiida import load_dbenv, is_dbenv_loaded
+    from aiida.backends import settings
+    if not is_dbenv_loaded():
+        load_dbenv(profile=settings.AIIDADB_PROFILE)
+    print "========> " + settings.AIIDADB_PROFILE
+
+    return
+
     sim = SharingInfoManagement()
     if not new_permissions in [sim.READ_RIGHT, sim.WRITE_RIGHT]:
         click.echo('Only the following permisions are accepted: ' +
