@@ -98,8 +98,16 @@ class TestSharingUserManagement(unittest.TestCase):
         self.assertEqual(spyros_record[sim.PROFILES][0][sim.PERMISSION],
                          sim.NO_RIGHT)
 
+        # Test permissions that are not valid
         sim.update_user_rights(self.temp_conf, "Spyros", "sqla_1",
                                "Unknown right")
+        spyros_record = sim._get_user_info(self.temp_conf, "Spyros")
+        self.assertEqual(spyros_record[sim.PROFILES][0][sim.PERMISSION],
+                         sim.NO_RIGHT)
+
+        # Test a profile that doesn't exist
+        sim.update_user_rights(self.temp_conf, "Spyros", "sqla_2",
+                               sim.NO_RIGHT)
         spyros_record = sim._get_user_info(self.temp_conf, "Spyros")
         self.assertEqual(spyros_record[sim.PROFILES][0][sim.PERMISSION],
                          sim.NO_RIGHT)

@@ -13,6 +13,7 @@ from aiida.cmdline.commands import share, verdi
 from aiida.cmdline.baseclass import VerdiCommandWithSubcommands
 from aiida.cmdline.commands.work import CONTEXT_SETTINGS
 from aiida.sharing.sharing_logging import SharingLoggingFactory
+from aiida.sharing.sharing_info_management import SharingInfoManagement
 
 class Share(VerdiCommandWithSubcommands):
     """
@@ -67,36 +68,79 @@ def share_user():
 
 
 @share_user.command('add')
-def share_user_add():
+@click.argument('username')
+@click.argument('public_key')
+def share_user_add(username, public_key):
     """
     Add a sharing AiiDA user.
     """
-    click.echo('command: share user add')
+    sim = SharingInfoManagement()
+    conf = sim.load_conf()
+    if sim.add_user(conf, username, public_key) == 0:
+        sim.save_conf(conf)
+        click.echo("User added successfully")
+    else:
+        click.echo("User already exists")
 
 
 @share_user.command('remove')
-def share_user_remove():
+@click.argument('username')
+def share_user_remove(username):
     """
     Remove a sharing AiiDA user.
     """
     click.echo('command: share user remove')
+    sim = SharingInfoManagement()
+    conf = sim.load_conf()
+    if sim.del_user(conf, username) == 0:
+        sim.save_conf(conf)
+        click.echo("User deleted successfully")
+    else:
+        click.echo("User not found")
 
 
 @share_user.command('list')
-def share_user_list():
+@click.option('-v', '--verbose', is_flag=True, help='List also the user '
+                                                    'permissions per profile')
+def share_user_list(verbose):
     """
     List the available sharing AiiDA users.
     """
-    click.echo('command: share user list')
+    sim = SharingInfoManagement()
+    conf = sim.load_conf()
+    users = sim.get_users(conf)
+    click.echo("The following sharing users were found")
+    for user in users:
+        click.echo("> " + user)
+        if verbose:
+            user_info = sim._get_user_info(conf, user)
+            for profile in user_info[sim.PROFILES]:
+                click.echo("  Profile: " + profile[sim.PROFILE_NAME] +
+                           " , Permissions: " + profile[sim.PERMISSION])
+            if len(user_info[sim.PROFILES]) == 0:
+                click.echo("  No profiles found")
 
 
 @share.command('authorize')
-def share_authorize():
+@click.argument('username')
+@click.argument('profile')
+@click.argument('new_permissions')
+def share_authorize(username, profile, new_permissions):
     """
     Allow an AiIDA sharing user to read or write to a specific repository.
     """
     click.echo('command: share authorize')
-
+    sim = SharingInfoManagement()
+    conf = sim.load_conf()
+    res = sim.update_user_rights(conf, username, profile, new_permissions)
+    if res == 0:
+        sim.save_conf(conf)
+        click.echo('User permissions changed successfully')
+    elif res == 1:
+        click.echo('The given permissions are not valid. The choices are '
+                   + str(sim.AVAIL_PROF_RIGHTS))
+    elif res == 2:
+        click.echo('User ' + username + ' doesn\'t exist')
 
 @share.command('deauthorize')
 def share_deauthorize():

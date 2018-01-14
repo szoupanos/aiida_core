@@ -133,19 +133,33 @@ class SharingInfoManagement:
         return None
 
     def update_user_rights(self, conf, username, profile, new_rights):
+        """
+        Update the user rights
+        :param conf:
+        :param username:
+        :param profile:
+        :param new_rights:
+        :return: 1 if the given rights are not correct, 2 if the user doesn't
+        exist.
+        """
         if new_rights not in self.AVAIL_PROF_RIGHTS:
-            return 0
+            return 1
 
         user_info = self._get_user_info(conf, username)
         if user_info is None:
-            return 1
+            return 2
 
         for prof in user_info[self.PROFILES]:
             if prof[self.PROFILE_NAME] == profile:
                 prof[self.PERMISSION] = new_rights
                 return 0
+        # If the profile doesn't exist, we add it
+        user_info[self.PROFILES].append({
+            self.PROFILE_NAME: profile,
+            self.PERMISSION: new_rights
+        })
 
-        return 1
+        return 0
 
     def update_user_key(self, conf, username, new_key):
         user_info = self._get_user_info(conf, username)
