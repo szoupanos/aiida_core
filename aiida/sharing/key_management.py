@@ -121,9 +121,10 @@ class SSHAuthorizedKeysFile():
         """
         with open(self.filename, 'w') as key_file:
             for key in self.keys:
+                print "LLLLLL" + str(key.comment)
                 if username + "@" + profile == key.comment:
                     continue
-                key_file.write(key.keydata + '\n')
+                key_file.write(key.keydata)
 
     def __getitem__(self, key):
         return self.keys[key]

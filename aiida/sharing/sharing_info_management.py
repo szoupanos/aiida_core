@@ -161,6 +161,13 @@ class SharingInfoManagement:
 
         return 0
 
+    def get_user_key(self, conf, username):
+        user_info = self._get_user_info(conf, username)
+        if user_info is None:
+            return 1
+
+        return user_info[self.KEY]
+
     def update_user_key(self, conf, username, new_key):
         user_info = self._get_user_info(conf, username)
         if user_info is None:

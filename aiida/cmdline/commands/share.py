@@ -128,30 +128,12 @@ def share_authorize(username, profile, new_permissions):
     """
     Allow an AiIDA sharing user to read or write to a specific repository.
     """
-    f = SSHAuthorizedKeysFile('aiida')
-    for key in f.get_keys():
-        print key
+    # from aiida import load_dbenv, is_dbenv_loaded
+    # from aiida.backends import settings
+    # if not is_dbenv_loaded():
+    #     load_dbenv(profile=settings.AIIDADB_PROFILE)
+    # print "========> " + settings.AIIDADB_PROFILE
 
-    print "============================"
-
-    f.create_sharing_entry(
-
-        "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQCxO38tKAJXIs9ivPxt7AY"
-        "dfybgtAR1ow3Qkb9GPQ6wkFHQqcFDe6faKCxH6iDRteo4D8L8B"
-        "xwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrh"
-        "H1pON6P0="
-        , username, "sqla2")
-
-
-
-
-    from aiida import load_dbenv, is_dbenv_loaded
-    from aiida.backends import settings
-    if not is_dbenv_loaded():
-        load_dbenv(profile=settings.AIIDADB_PROFILE)
-    print "========> " + settings.AIIDADB_PROFILE
-
-    return
 
     sim = SharingInfoManagement()
     if not new_permissions in [sim.READ_RIGHT, sim.WRITE_RIGHT]:
@@ -162,6 +144,11 @@ def share_authorize(username, profile, new_permissions):
     res = sim.update_user_rights(conf, username, profile, new_permissions)
     if res == 0:
         sim.save_conf(conf)
+        # Now updating the authorized_keys file
+        raw_ssh_key = sim.get_user_key(conf, username)
+        akf = SSHAuthorizedKeysFile('aiida')
+        akf.create_sharing_entry(raw_ssh_key, username, profile)
+
         click.echo('User permissions changed successfully')
     elif res == 1:
         click.echo('The given permissions are not valid. The choices are '
@@ -180,7 +167,13 @@ def share_deauthorize(username, profile):
     conf = sim.load_conf()
     res = sim.update_user_rights(conf, username, profile, sim.NO_RIGHT)
     if res == 0:
+        # Saving the updated conf file
         sim.save_conf(conf)
+
+        # Now updating the authorized_keys file
+        akf = SSHAuthorizedKeysFile('aiida')
+        akf.delete_sharing_entry(username, profile)
+
         click.echo('User permissions changed successfully')
     elif res == 2:
         click.echo('User ' + username + ' doesn\'t exist')
