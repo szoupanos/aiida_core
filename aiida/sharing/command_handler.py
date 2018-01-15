@@ -41,8 +41,9 @@ class CommandHandler:
     def cmd_selector(self, command_name):
         switcher = {
             self.SEND_FILE : SendFileCommand,
+            self.REC_FILE : ReceiveFileCommand,
         }
-        # Get the right send command
+        # Get the right command
         cmd_class = switcher.get(command_name)
-        # Execute the method
+        self.logger.debug("The " + cmd_class.__name__ + " was selected")
         return cmd_class

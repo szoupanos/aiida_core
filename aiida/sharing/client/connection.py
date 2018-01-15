@@ -27,7 +27,7 @@ class ConnectionClient(Connection):
         """
         self.logger.debug("wait for the OK reply")
         while True:
-            rec_msg = self.channel.recv(self.BUFFER_SIZE)
+            rec_msg = self.channel.recv(len(self.OK_MSG))
             self.logger.debug("Received: " + rec_msg)
             if rec_msg == self.OK_MSG:
                 break
@@ -52,7 +52,8 @@ class ConnectionClient(Connection):
 
         bytes_to_send = size_of_chunck
         if size_of_chunck is None:
-            bytes_to_send = sys.getsizeof(chunk)
+            # bytes_to_send = sys.getsizeof(chunk)
+            bytes_to_send = len(chunk)
 
         self.logger.debug("Sending the chunk size (" +
                       str(bytes_to_send) + " bytes)")
@@ -64,6 +65,9 @@ class ConnectionClient(Connection):
             return 1
 
         byte_no = self.channel.send(chunk)
+        # self.channel.sendall(chunk)
+        # byte_no = sys.getsizeof(chunk)
+        # byte_no = len(chunk)
         self.logger.debug("Sent " + str(byte_no) + " bytes.")
 
         self.logger.debug("wait for the OK that chunk was received OK")

@@ -29,23 +29,27 @@ class ServerCommandHandler(CommandHandler):
         return False
 
     def handle(self, **kwargs):
-        self.logger.debug("In the handle method")
-        command = self.connection.receive()
-        self.logger.debug("Received command " + command)
+        try:
+            self.logger.debug("In the handle method")
+            command = self.connection.receive()
+            self.logger.debug("Received command " + command)
 
-        if command not in self.AVAILABLE_CMDS:
-            self.logger.debug("The command requested is not supported, "
-                              "exiting")
-            raise InvalidOperation("The command requested is not supported.")
+            if command not in self.AVAILABLE_CMDS:
+                self.logger.debug("The command requested is not supported, "
+                                  "exiting")
+                raise InvalidOperation("The command requested is not supported.")
 
-        # Create the command class
-        srv_command = self.CMD_PAIRS[command]
-        self.logger.debug("I will execute the " + srv_command + " command")
-        srv_cmd_class = self.cmd_selector(srv_command)
-        cmd_obj = srv_cmd_class(self.connection)
-        # Execute command
-        cmd_obj.execute(**kwargs)
-
+            # Create the command class
+            srv_command = self.CMD_PAIRS[command]
+            self.logger.debug("I will execute the " + srv_command + " command")
+            srv_cmd_class = self.cmd_selector(srv_command)
+            cmd_obj = srv_cmd_class(self.connection)
+            # Execute command
+            self.logger.debug("Calling the execute method of " + str(cmd_obj)
+                              + " with the following arguments: " + str(kwargs))
+            cmd_obj.execute(**kwargs)
+        except Exception as e:
+            self.logger.exception("An exception was caught")
 
         # self.logger.debug("sys.stdout.closed? " + str(sys.stdout.closed))
         # self.logger.debug("Reading message size")

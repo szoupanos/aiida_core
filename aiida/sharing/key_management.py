@@ -20,7 +20,7 @@ import pwd
 import sshpubkeys
 
 AIIDA_SHARING_CMD = ('command="source /home/aiida/aiidapy/bin/activate; '
-                     'verdi -p {} share handle_push",no-port-forwarding,'
+                     'verdi -p {} share sharing_handler",no-port-forwarding,'
                      'no-X11-forwarding,no-agent-forwarding,no-pty ')
 
 class SSHAuthorizedKeysEntry(sshpubkeys.SSHKey):

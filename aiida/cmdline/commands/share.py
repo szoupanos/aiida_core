@@ -196,7 +196,8 @@ def share_push():
     ) as cch:
         cch.handle(
             SendFileCommand.cmd_name,
-            filename='/home/aiida/foo10/sample.txt')
+            # filename='/home/aiida/foo10/sample.txt')
+            filename='/home/aiida/foo10/LARGE_elevation.jpg')
 
 def share_push_old():
     """

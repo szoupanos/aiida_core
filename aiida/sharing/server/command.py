@@ -10,31 +10,50 @@
 
 import sys
 from aiida.sharing.command import Command
+from aiida.common.exceptions import InvalidOperation
 
 class ReceiveFileCommand(Command):
 
     cmd_name = 'REC_FILE'
 
-    logger = None
+    connection = None
 
-    def __init__(self):
+    def __init__(self, connection):
         super(ReceiveFileCommand, self).__init__()
+        self.connection = connection
+        self.logger.debug("Initialized the receive command")
 
     def execute(self):
-        self.logger.debug("[share_handle_push] " + "Reading the file size")
-        # # Read the size of the file
-        # file_size = int(sys.stdin.read(4))
-        # sys.stdout.write("OK")
-        # sys.stdout.flush()
-        #
-        # bytes_read = 0
-        # self.logger.debug("[share_handle_push] " + "Reading the file and "
-        #                                        "storing it locally.")
+        self.logger.debug("In the execute of the " + self.cmd_name +
+                          " command")
+
+        if self.connection is None:
+            self.logger.debug(
+                "The connection is not initialized, exiting")
+            raise InvalidOperation("The connection is not initialized")
+
+        # Receiving the size of the file
+        self.logger.debug("Receiving the size of the file")
+        msg = self.connection.receive()
+        self.logger.debug("Received: " + msg)
+        file_size = int(msg)
+
+        bytes_read = 0
+        self.logger.debug("Reading the file and storing it locally.")
+        with open('/home/aiida/foo10/output_file.bin', 'w') as f:
+            while bytes_read < file_size:
+                chunk = self.connection.receive()
+                self.logger.debug("Received: " + msg)
+                f.write(chunk)
+                bytes_read += len(chunk)
+
+        # Sending OK that the file was read
+        self.logger.debug("File was read OK. Exiting receive command.")
+
         # with open('/home/aiida/foo10/output_file.bin', 'w') as f:
         #     while bytes_read < file_size:
         #         if file_size - bytes_read > 1024:
-        #             self.logger.debug("[share_handle_push] " +
-        #                           "Reading 1024 bytes")
+        #             self.logger.debug("Reading 1024 bytes")
         #             chunk = sys.stdin.read(1024)
         #         else:
         #             self.logger.debug("[share_handle_push] " +

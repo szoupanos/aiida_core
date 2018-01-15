@@ -51,19 +51,25 @@ class ConnectionServer(Connection):
         """
         self.logger.debug("Reading message size")
         msg_size = int(sys.stdin.read(self.BYTES_FOR_CHUNK_SIZE_MSG))
-        self.logger.debug("Reply that you read message size")
+
+        self.logger.debug("Reply that you read message size: " + str(msg_size))
         sys.stdout.write(self.OK_MSG)
         sys.stdout.flush()
+
         self.logger.debug("Reading message")
         msg = sys.stdin.read(msg_size)
         self.logger.debug("Read: " + msg)
+
+        self.logger.debug("Reply that you read the message")
+        sys.stdout.write(self.OK_MSG)
+        sys.stdout.flush()
 
         return msg
 
     def wait_for_ok(self):
         self.logger.debug("wait for the OK reply")
         while True:
-            rec_msg = sys.stdin.read(1024)
+            rec_msg = sys.stdin.read(len(self.OK_MSG))
             self.logger.debug("Received: " + rec_msg)
             if rec_msg == self.OK_MSG:
                 break
