@@ -36,6 +36,7 @@ class Share(VerdiCommandWithSubcommands):
             'authorize': (self.cli, self.complete_none),
             'deauthorize': (self.cli, self.complete_none),
             'push': (self.cli, self.complete_none),
+            'push_file': (self.cli, self.complete_none),
             'sharing_handler': (self.cli, self.complete_none),
             'pull': (self.cli, self.complete_none),
         }
@@ -181,12 +182,32 @@ def share_deauthorize(username, profile):
         click.echo('Unknown error')
 
 @share.command('push')
-def share_push():
+@click.argument('remote_uri')
+@click.argument('local_group')
+def share_push(remote_uri, local_group):
     """
     Push the local nodes to a remote repository, indicated by the remote
     profile name.
     """
     logger.debug('command: share push')
+    from aiida.sharing.client.command_handler import ClientCommandHandler
+    from aiida.sharing.client.command import PushCommand
+
+    with ClientCommandHandler(
+            remote_uri,
+            '/home/aiida/.ssh/id_rsa_s4'
+    ) as cch:
+        cch.handle(
+            PushCommand.cmd_name,
+            local_group=local_group)
+
+@share.command('push_file')
+def share_push_file():
+    """
+    Push the local nodes to a remote repository, indicated by the remote
+    profile name.
+    """
+    logger.debug('command: share push file')
     from aiida.sharing.client.command_handler import ClientCommandHandler
     from aiida.sharing.client.command import SendFileCommand
 

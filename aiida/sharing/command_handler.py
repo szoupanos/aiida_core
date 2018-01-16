@@ -11,7 +11,9 @@
 from abc import ABCMeta, abstractmethod
 from aiida.sharing.sharing_logging import SharingLoggingFactory
 from aiida.sharing.client.command import SendFileCommand
+from aiida.sharing.client.command import PushCommand
 from aiida.sharing.server.command import ReceiveFileCommand
+from aiida.sharing.server.command import HandlePushCommand
 
 class CommandHandler:
     __metaclass__ = ABCMeta
@@ -20,14 +22,17 @@ class CommandHandler:
     SEND_FILE = SendFileCommand.cmd_name
     SEND_BUFF = 'SEND_BUFF'
     REC_FILE = ReceiveFileCommand.cmd_name
+    PUSH = PushCommand.cmd_name
+    HANDLE_PUSH = HandlePushCommand.cmd_name
 
     # Command pairs
     CMD_PAIRS = {
-        SEND_FILE: REC_FILE
+        SEND_FILE: REC_FILE,
+        PUSH: HANDLE_PUSH,
     }
 
     # Set of commands
-    AVAILABLE_CMDS = set((SEND_FILE, SEND_BUFF))
+    AVAILABLE_CMDS = set((SEND_FILE, SEND_BUFF, PUSH))
 
     def __init__(self):
         self.logger = SharingLoggingFactory.get_logger(
@@ -42,6 +47,8 @@ class CommandHandler:
         switcher = {
             self.SEND_FILE : SendFileCommand,
             self.REC_FILE : ReceiveFileCommand,
+            self.PUSH: PushCommand,
+            self.HANDLE_PUSH: HandlePushCommand,
         }
         # Get the right command
         cmd_class = switcher.get(command_name)
