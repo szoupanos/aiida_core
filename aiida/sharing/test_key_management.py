@@ -58,7 +58,7 @@ class SSHAuthorizedKeysGoodUsersTest(unittest.TestCase):
     dummy_user = "dummy_user"
     dummy_profile = "dummy_profile"
     valid_dummy_sharing_key_1 = (AIIDA_SHARING_CMD + valid_dummy_just_hash_1
-                                 + " {}@{}".format())
+                                 + " {}@{}".format(dummy_user, dummy_profile))
 
 
 
@@ -155,14 +155,11 @@ class SSHAuthorizedKeysGoodUsersTest(unittest.TestCase):
         # Check the existence of all the keys
         self.assertEqual(len(f.keys), 3)
         self.assertEqual(f[0].keydata, self.valid_dummy_key_1)
-        self.assertEqual(f[0].keydata, self.valid_dummy_key_2)
-        self.assertEqual(f[1].keydata, self.not_valid_dummy_key_1)
-
-        f.append(self.valid_dummy_key_1)
-        f.append(self.valid_dummy_key_2)
-        f.append()
-
-
+        self.assertEqual(f[1].keydata, self.valid_dummy_key_2)
+        # Check that the sharing entry was added correctly
+        self.assertIn(self.valid_dummy_just_hash_1, f[2].keydata)
+        self.assertIn('user_aiida', f[2].keydata)
+        self.assertIn('profile_1', f[2].keydata)
 
     def testKeyRemovalPersists(self):
         f = AuthorizedKeysFileManager('aiida')
