@@ -16,9 +16,9 @@ from aiida.sharing.sharing_info_management import (SharingInfoManagement,
                                                    SHARING_CONF_FILENAME)
 
 VALID_DUMMY_KEY = ('ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQDmOXORyDk9dZSYxu'
-                       'dLF1xEivuixKRVT6OCg7SDySJHVzqFnQkJSXwwcCEF0FdTAA0VaidI'
-                       'pgDhXdj9UFzcKfgo3Hf0R5bLAZXn7UQjNWh3M8v+K9cUVIWBukIoLl'
-                       'zs4zE= dummy debugging key')
+                   'dLF1xEivuixKRVT6OCg7SDySJHVzqFnQkJSXwwcCEF0FdTAA0VaidI'
+                   'pgDhXdj9UFzcKfgo3Hf0R5bLAZXn7UQjNWh3M8v+K9cUVIWBukIoLl'
+                   'zs4zE= dummy debugging key')
 
 TEMP_CONF = {
             "user_info": [

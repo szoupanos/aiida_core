@@ -14,16 +14,15 @@
 # But that was used as a starting point but it was also enriched.         #
 ###########################################################################
 
-from os.path import isdir
 import os
 import pwd
 import sshpubkeys
 
 AIIDA_SHARING_CMD = ('command="source /home/aiida/aiidapy/bin/activate; '
-                     'verdi -p {} share sharing_handler",no-port-forwarding,'
+                     'verdi share sharing_handler",no-port-forwarding,'
                      'no-X11-forwarding,no-agent-forwarding,no-pty ')
 
-class SSHAuthorizedKeysEntry(sshpubkeys.SSHKey):
+class AuthorizedKey(sshpubkeys.SSHKey):
     def get_comment(self):
         return ' '.join(self.keydata.split('= ')[1:]).strip()
 
@@ -37,52 +36,70 @@ class SSHAuthorizedKeysEntry(sshpubkeys.SSHKey):
             comment=self.get_comment()
         )
 
-class SSHAuthorizedKeysFile():
-    # This class makes the relatively acceptable assumption that
-    # the AuthorizedHostKeys file in sshd's config file is not
-    # changed from the default of %h/.ssh/authorized_keys
+class AuthorizedKeysFileManager:
+
+    auth_keys_fullpath = None
+
     def __init__(self, username):
+        # Check if the user exist and if it has a working directory
         try:
             user = pwd.getpwnam(username)
         except KeyError:
             raise KeyError('User %s does not exist' % (username,))
-
-        if not isdir(user.pw_dir):
+        if not os.path.isdir(user.pw_dir):
             raise ValueError('User home directory does not exist')
 
-        ssh_path = user.pw_dir + '/.ssh/'
+        # Retrieve the authorized keys relative path
+        auth_keys_relpath = '.ssh/authorized_keys'
+        self.auth_keys_fullpath = self.check_and_create_authorized_keys(
+            auth_keys_relpath)
 
-        if not isdir(ssh_path):
-            os.mkdir(ssh_path)
-            os.chmod(ssh_path, 0700)
-            os.chown(ssh_path, user.pw_uid, user.pw_gid)
-
-        self.filename = ssh_path + 'authorized_keys'
-
-        if os.path.isfile(self.filename):
-            self.keys = [SSHAuthorizedKeysEntry(key) for key in
-                         open(self.filename, 'r')]
+        if os.path.isfile(self.auth_keys_fullpath):
+            self.keys = [AuthorizedKey(key.strip()) for key in
+                         open(self.auth_keys_fullpath, 'r')]
         else:
             self.keys = []
 
+    @staticmethod
+    def check_and_create_authorized_keys(given_auth_keys_relpath=None):
+        import getpass
+
+        if given_auth_keys_relpath is None:
+            auth_keys_relpath = './ssh/authorized_keys'
+        else:
+            auth_keys_relpath = given_auth_keys_relpath
+
+        user_info = pwd.getpwnam(getpass.getuser())
+        auth_keys_fullpath = os.path.join(user_info.pw_dir, auth_keys_relpath)
+        ssh_dir = os.path.dirname(auth_keys_fullpath)
+
+        # If the .ssh directory doesn't exist, create it
+        if not os.path.isdir(ssh_dir):
+            os.mkdir(ssh_dir)
+            os.chmod(ssh_dir, 0700)
+            os.chown(ssh_dir, user_info.pw_uid, user_info.pw_gid)
+
+        return auth_keys_fullpath
+
+
     def append(self, keydata):
         if type(keydata) is str:
-            if keydata in [k.keydata for k in self.keys]:
+            if keydata.strip() in [k.keydata for k in self.keys]:
                 raise ValueError('Key already in file')
             try:
-                key = SSHAuthorizedKeysEntry(keydata)
+                key = AuthorizedKey(keydata.strip())
             except Exception as e:
                 raise ValueError(e)
 
-        elif type(keydata) is SSHAuthorizedKeysEntry:
+        elif type(keydata) is AuthorizedKey:
             key = keydata
-            if key.keydata in [k.keydata.strip() for k in self.keys]:
+            if key.keydata.strip() in [k.keydata for k in self.keys]:
                 raise ValueError('Key already in file')
-
+            key.keydata = key.keydata.strip()
         else:
             raise TypeError('keydata must be string or SSH Key object')
 
-        open(self.filename, 'a').write(key.keydata + '\n')
+        open(self.auth_keys_fullpath, 'a').write(key.keydata + '\n')
         self.keys.append(key)
 
     def get_keys(self):
@@ -92,9 +109,10 @@ class SSHAuthorizedKeysFile():
         # Create a new key according the AiiDA sharing standards
         # These will be command + ssh_options + provided_pure_ssh_key +
         # username@repository as options
-        full_key = (AIIDA_SHARING_CMD.format(profile) + key_hash + " " +
+        full_key = (AIIDA_SHARING_CMD + key_hash + " " +
                     username + "@" + profile)
-        ssh_key = SSHAuthorizedKeysEntry(keydata=full_key, strict_mode = True)
+        aiida_sharing_key = AuthorizedKey(keydata=full_key, strict_mode = True)
+        self.append(aiida_sharing_key)
 
         # print "====>" + ssh_key.keydata
         # print(ssh_key.bits)  # 768
@@ -107,24 +125,15 @@ class SSHAuthorizedKeysFile():
         #
         # print "TTTTTT " + ssh_key.keydata
 
-        # Store the SSH key to the authorized key file
-        with open(self.filename, 'a') as key_file:
-            key_file.write(ssh_key.keydata + '\n')
-        self.keys.append(ssh_key)
 
     def delete_sharing_entry(self, username, profile):
-        """
-        To be created
-        :param username:
-        :param profile:
-        :return:
-        """
-        with open(self.filename, 'w') as key_file:
+        with open(self.auth_keys_fullpath, 'w') as key_file:
             for key in self.keys:
                 print "LLLLLL" + str(key.comment)
+                print "======>" + str(key.keydata)
                 if username + "@" + profile == key.comment:
                     continue
-                key_file.write(key.keydata)
+                key_file.write(key.keydata + '\n')
 
     def __getitem__(self, key):
         return self.keys[key]
@@ -132,10 +141,10 @@ class SSHAuthorizedKeysFile():
     def __delitem__(self, key):
         ssh_key = self.keys[key]
 
-        with open(self.filename, 'r') as keyfile:
+        with open(self.auth_keys_fullpath, 'r') as keyfile:
             keyfile_entries = [x.strip() for x in keyfile.readlines()]
 
-        with open(self.filename, 'w') as keyfile:
+        with open(self.auth_keys_fullpath, 'w') as keyfile:
             for keydata in keyfile_entries:
                 if ssh_key.keydata != keydata:
                     keyfile.write(keydata + '\n')

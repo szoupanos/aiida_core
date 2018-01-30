@@ -13,7 +13,7 @@ from aiida.cmdline.commands import share, verdi
 from aiida.cmdline.baseclass import VerdiCommandWithSubcommands
 from aiida.sharing.sharing_logging import SharingLoggingFactory
 from aiida.sharing.sharing_info_management import SharingInfoManagement
-from aiida.sharing.key_management import SSHAuthorizedKeysFile
+from aiida.sharing.key_management import AuthorizedKeysFileManager
 
 class Share(VerdiCommandWithSubcommands):
     """
@@ -147,7 +147,7 @@ def share_authorize(username, profile, new_permissions):
         sim.save_conf(conf)
         # Now updating the authorized_keys file
         raw_ssh_key = sim.get_user_key(conf, username)
-        akf = SSHAuthorizedKeysFile('aiida')
+        akf = AuthorizedKeysFileManager('aiida')
         akf.create_sharing_entry(raw_ssh_key, username, profile)
 
         click.echo('User permissions changed successfully')
@@ -172,7 +172,7 @@ def share_deauthorize(username, profile):
         sim.save_conf(conf)
 
         # Now updating the authorized_keys file
-        akf = SSHAuthorizedKeysFile('aiida')
+        akf = AuthorizedKeysFileManager('aiida')
         akf.delete_sharing_entry(username, profile)
 
         click.echo('User permissions changed successfully')
