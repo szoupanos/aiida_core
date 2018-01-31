@@ -18,7 +18,7 @@ from aiida.common.exceptions import ValidationError as AValidationError
 
 SHARING_CONF_FILENAME = "sharing_conf.json"
 
-class SharingInfoManagement:
+class SharingInfoFileManagement:
 
     conf_filepath = None
     conf_info = None
@@ -35,7 +35,8 @@ class SharingInfoManagement:
     READ_RIGHT = "Read"
     WRITE_RIGHT = "Write"
     NO_RIGHT = "None"
-    AVAIL_PROF_RIGHTS = [READ_RIGHT, WRITE_RIGHT, NO_RIGHT]
+    RIGHTS_ORDER = [NO_RIGHT, READ_RIGHT, WRITE_RIGHT]
+    AVAIL_PROF_RIGHTS = set(RIGHTS_ORDER)
 
     # The schema of the JSON file containing the sharing information
     schema = {
@@ -76,6 +77,8 @@ class SharingInfoManagement:
         aiida_dir = os.path.expanduser(AIIDA_CONFIG_FOLDER)
         self.conf_filepath = os.path.join(aiida_dir, SHARING_CONF_FILENAME)
 
+    def _get_rights_importance(self, given_rights):
+        return self.RIGHTS_ORDER.index(given_rights)
 
     def load_conf(self):
         with open(self.conf_filepath, "r") as jsonFile:
@@ -176,3 +179,35 @@ class SharingInfoManagement:
         user_info[self.KEY] = new_key
 
         return 1
+
+    def check_user_rights(self, conf, username, profile, needed_rights):
+        """
+        :param conf:
+        :param username:
+        :param profile:
+        :param needed_rights:
+        :return:
+        0 If the user can access the repository
+        1 If the user doesn't exist in the configuration
+        2 If the user doesn't have the needed right for the provided profile
+        3 If the user doesn't even have the profile in his available profiles
+        (and, of course, doesn't have needed right to access it)
+        """
+        user_info = self._get_user_info(conf, username)
+        # If the user is not found
+        if user_info is None:
+            return 1
+        for prof in user_info[self.PROFILES]:
+            # If the profile is found the
+            if prof[self.PROFILE_NAME] == profile:
+                # If the user has the permission to access the profile with
+                # the given rights
+                if (self._get_rights_importance(prof[self.PERMISSION]) >=
+                        self._get_rights_importance(needed_rights)):
+                    return 0
+                # If the user doesn't have the permission to access the
+                # profile with the given rights
+                else:
+                    return 2
+        # The user doesn't have this profile listed in his profiles
+        return 3

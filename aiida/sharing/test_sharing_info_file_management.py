@@ -12,8 +12,8 @@ import unittest
 import tempfile
 import os
 
-from aiida.sharing.sharing_info_management import (SharingInfoManagement,
-                                                   SHARING_CONF_FILENAME)
+from aiida.sharing.sharing_info_file_management import (
+    SharingInfoFileManagement, SHARING_CONF_FILENAME)
 
 VALID_DUMMY_KEY = ('ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQDmOXORyDk9dZSYxu'
                    'dLF1xEivuixKRVT6OCg7SDySJHVzqFnQkJSXwwcCEF0FdTAA0VaidI'
@@ -35,7 +35,7 @@ TEMP_CONF = {
             ]
         }
 
-class TestSharingUserManagement(unittest.TestCase):
+class TestSharingUserFileInfo(unittest.TestCase):
 
     temp_conf = None
 
@@ -46,7 +46,7 @@ class TestSharingUserManagement(unittest.TestCase):
     def test_add_user_get_user_info(self):
         from jsonschema import validate
 
-        sim = SharingInfoManagement()
+        sim = SharingInfoFileManagement()
         sim.add_user(self.temp_conf, "Mark", VALID_DUMMY_KEY)
 
         # Check that the schema is still valid
@@ -60,7 +60,7 @@ class TestSharingUserManagement(unittest.TestCase):
         self.assertEqual(mark_record[sim.PROFILES], list())
 
     def test_del_user_get_users(self):
-        sim = SharingInfoManagement()
+        sim = SharingInfoFileManagement()
 
         # Adding one more user
         sim.add_user(self.temp_conf, "Mark", VALID_DUMMY_KEY)
@@ -84,7 +84,7 @@ class TestSharingUserManagement(unittest.TestCase):
         self.assertEqual(sim.get_users(self.temp_conf), [])
 
     def test_update_user_rights(self):
-        sim = SharingInfoManagement()
+        sim = SharingInfoFileManagement()
 
         sim.update_user_rights(self.temp_conf, "Spyros", "sqla_1",
                                sim.READ_RIGHT)
@@ -119,15 +119,59 @@ class TestSharingUserManagement(unittest.TestCase):
                          sim.NO_RIGHT)
 
     def test_update_user_key(self):
-        sim = SharingInfoManagement()
+        sim = SharingInfoFileManagement()
         sim.update_user_key(self.temp_conf, "Spyros", VALID_DUMMY_KEY)
         spyros_record = sim._get_user_info(self.temp_conf, "Spyros")
         self.assertEqual(spyros_record[sim.KEY], VALID_DUMMY_KEY)
 
+
+    def test_check_user_rights(self):
+        sim = SharingInfoFileManagement()
+
+        # Initially the user doesn't have any rights
+        self.assertEqual(sim.check_user_rights(
+            self.temp_conf, "Spyros", "sqla_1", sim.NO_RIGHT), 0)
+        self.assertGreater(sim.check_user_rights(
+            self.temp_conf, "Spyros", "sqla_1", sim.READ_RIGHT), 0)
+        self.assertGreater(sim.check_user_rights(
+            self.temp_conf, "Spyros", "sqla_1", sim.WRITE_RIGHT), 0)
+
+        # Set the new user rights (read)
+        sim.update_user_rights(self.temp_conf, "Spyros", "sqla_1",
+                               sim.READ_RIGHT)
+        # Now that the no_rights and read_rights checks pass
+        self.assertEqual(sim.check_user_rights(
+            self.temp_conf, "Spyros", "sqla_1", sim.NO_RIGHT), 0)
+        self.assertEqual(sim.check_user_rights(
+            self.temp_conf, "Spyros", "sqla_1", sim.READ_RIGHT), 0)
+        self.assertGreater(sim.check_user_rights(
+            self.temp_conf, "Spyros", "sqla_1", sim.WRITE_RIGHT), 0)
+
+        # Set the new user rights (write)
+        sim.update_user_rights(self.temp_conf, "Spyros", "sqla_1",
+                               sim.WRITE_RIGHT)
+
+        # Now that the no_rights, read_rights and write_rights checks pass
+        self.assertEqual(sim.check_user_rights(
+            self.temp_conf, "Spyros", "sqla_1", sim.NO_RIGHT), 0)
+        self.assertEqual(sim.check_user_rights(
+            self.temp_conf, "Spyros", "sqla_1", sim.READ_RIGHT), 0)
+        self.assertEqual(sim.check_user_rights(
+            self.temp_conf, "Spyros", "sqla_1", sim.WRITE_RIGHT), 0)
+
+        # Check a non-existng repository. All rights checks should fail
+        self.assertGreater(sim.check_user_rights(
+            self.temp_conf, "Spyros", "sqla_2", sim.NO_RIGHT), 0)
+        self.assertGreater(sim.check_user_rights(
+            self.temp_conf, "Spyros", "sqla_2", sim.READ_RIGHT), 0)
+        self.assertGreater(sim.check_user_rights(
+            self.temp_conf, "Spyros", "sqla_2", sim.WRITE_RIGHT), 0)
+
+
 class TestSharingUserFile(unittest.TestCase):
     def setUp(self):
         # Creating a dummy .aiida folder
-        self.sim = SharingInfoManagement()
+        self.sim = SharingInfoFileManagement()
         self.aiida_dir = tempfile.mkdtemp()
         self.sim.conf_filepath = os.path.join(self.aiida_dir,
                                               SHARING_CONF_FILENAME)

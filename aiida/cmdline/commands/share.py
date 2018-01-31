@@ -12,7 +12,8 @@ import click
 from aiida.cmdline.commands import share, verdi
 from aiida.cmdline.baseclass import VerdiCommandWithSubcommands
 from aiida.sharing.sharing_logging import SharingLoggingFactory
-from aiida.sharing.sharing_info_management import SharingInfoManagement
+from aiida.sharing.sharing_info_file_management import (
+    SharingInfoFileManagement)
 from aiida.sharing.key_management import AuthorizedKeysFileManager
 
 class Share(VerdiCommandWithSubcommands):
@@ -75,7 +76,7 @@ def share_user_add(username, public_key):
     """
     Add a sharing AiiDA user.
     """
-    sim = SharingInfoManagement()
+    sim = SharingInfoFileManagement()
     conf = sim.load_conf()
     if sim.add_user(conf, username, public_key) == 0:
         sim.save_conf(conf)
@@ -90,7 +91,7 @@ def share_user_remove(username):
     """
     Remove a sharing AiiDA user.
     """
-    sim = SharingInfoManagement()
+    sim = SharingInfoFileManagement()
     conf = sim.load_conf()
     if sim.del_user(conf, username) == 0:
         sim.save_conf(conf)
@@ -106,7 +107,7 @@ def share_user_list(verbose):
     """
     List the available sharing AiiDA users.
     """
-    sim = SharingInfoManagement()
+    sim = SharingInfoFileManagement()
     conf = sim.load_conf()
     users = sim.get_users(conf)
     click.echo("The following sharing users were found:")
@@ -129,14 +130,7 @@ def share_authorize(username, profile, new_permissions):
     """
     Allow an AiIDA sharing user to read or write to a specific repository.
     """
-    # from aiida import load_dbenv, is_dbenv_loaded
-    # from aiida.backends import settings
-    # if not is_dbenv_loaded():
-    #     load_dbenv(profile=settings.AIIDADB_PROFILE)
-    # print "========> " + settings.AIIDADB_PROFILE
-
-
-    sim = SharingInfoManagement()
+    sim = SharingInfoFileManagement()
     if not new_permissions in [sim.READ_RIGHT, sim.WRITE_RIGHT]:
         click.echo('Only the following permisions are accepted: ' +
                    sim.READ_RIGHT + ', ' + sim.WRITE_RIGHT)
@@ -164,7 +158,7 @@ def share_deauthorize(username, profile):
     """
     Remove access to a specific repository from a user.
     """
-    sim = SharingInfoManagement()
+    sim = SharingInfoFileManagement()
     conf = sim.load_conf()
     res = sim.update_user_rights(conf, username, profile, sim.NO_RIGHT)
     if res == 0:
