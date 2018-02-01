@@ -40,6 +40,10 @@ class AuthorizedKeysFileManager:
 
     auth_keys_fullpath = None
 
+    def __init__(self):
+        import getpass
+        self.__init__(username=getpass.getuser())
+
     def __init__(self, username):
         # Check if the user exist and if it has a working directory
         try:
@@ -51,7 +55,7 @@ class AuthorizedKeysFileManager:
 
         # Retrieve the authorized keys relative path
         auth_keys_relpath = '.ssh/authorized_keys'
-        self.auth_keys_fullpath = self.check_and_create_authorized_keys(
+        self.auth_keys_fullpath = self._check_and_create_authorized_keys(
             auth_keys_relpath)
 
         if os.path.isfile(self.auth_keys_fullpath):
@@ -61,15 +65,17 @@ class AuthorizedKeysFileManager:
             self.keys = []
 
     @staticmethod
-    def check_and_create_authorized_keys(given_auth_keys_relpath=None):
-        import getpass
+    def _check_and_create_authorized_keys(username,
+                                          given_auth_keys_relpath=None):
+        if username is None:
+            raise ValueError('A username has to be provided')
 
         if given_auth_keys_relpath is None:
             auth_keys_relpath = './ssh/authorized_keys'
         else:
             auth_keys_relpath = given_auth_keys_relpath
 
-        user_info = pwd.getpwnam(getpass.getuser())
+        user_info = pwd.getpwnam(username)
         auth_keys_fullpath = os.path.join(user_info.pw_dir, auth_keys_relpath)
         ssh_dir = os.path.dirname(auth_keys_fullpath)
 
@@ -81,6 +87,13 @@ class AuthorizedKeysFileManager:
 
         return auth_keys_fullpath
 
+    def get_authorized_keys(self):
+        with open(self.auth_keys_fullpath, 'r') as auth_keys:
+            return auth_keys.read()
+
+    def set_authorized_keys(self, auth_keys_content):
+        with open(self.auth_keys_fullpath, 'w') as auth_keys:
+            auth_keys.write(auth_keys_content)
 
     def append(self, keydata):
         if type(keydata) is str:
@@ -105,12 +118,11 @@ class AuthorizedKeysFileManager:
     def get_keys(self):
         return self.keys
 
-    def create_sharing_entry(self, key_hash, username, profile):
+    def create_sharing_entry(self, key_hash, username):
         # Create a new key according the AiiDA sharing standards
         # These will be command + ssh_options + provided_pure_ssh_key +
-        # username@repository as options
-        full_key = (AIIDA_SHARING_CMD + key_hash + " " +
-                    username + "@" + profile)
+        # username as options
+        full_key = (AIIDA_SHARING_CMD + key_hash + " " + username)
         aiida_sharing_key = AuthorizedKey(keydata=full_key, strict_mode = True)
         self.append(aiida_sharing_key)
 
@@ -126,12 +138,10 @@ class AuthorizedKeysFileManager:
         # print "TTTTTT " + ssh_key.keydata
 
 
-    def delete_sharing_entry(self, username, profile):
+    def delete_sharing_entry(self, username):
         with open(self.auth_keys_fullpath, 'w') as key_file:
             for key in self.keys:
-                print "LLLLLL" + str(key.comment)
-                print "======>" + str(key.keydata)
-                if username + "@" + profile == key.comment:
+                if username == key.comment:
                     continue
                 key_file.write(key.keydata + '\n')
 

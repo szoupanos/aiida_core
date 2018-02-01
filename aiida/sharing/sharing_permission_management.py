@@ -10,26 +10,100 @@
 
 from aiida.sharing.sharing_info_file_management import (
     SharingInfoFileManagement)
+from aiida.sharing.key_management import AuthorizedKeysFileManager
 
 class SharingPermissionManagement:
 
-    def user_add(self, username, public_key):
+    @staticmethod
+    def user_add(username, public_key):
         sim = SharingInfoFileManagement()
         conf = sim.load_conf()
+        old_conf = str(conf)
         if sim.add_user(conf, username, public_key) == 0:
-            sim.save_conf(conf)
-            click.echo("User added successfully")
+            # User added successfully
+            akf = AuthorizedKeysFileManager()
+            # Getting a copy of the authorized_keys file
+            old_auth_keys = akf.get_authorized_keys()
+            try:
+                # Saving the sharing configuration
+                sim.save_conf(conf)
+                # Now updating the authorized_keys file
+                akf.create_sharing_entry(public_key, username)
+            except:
+                # If something goes wrong, restore the old files
+                sim.save_conf(old_conf)
+                akf.set_authorized_keys(old_auth_keys)
+            return 0
         else:
-            click.echo("User already exists")
+            # User already exists
+            return 1
 
-    def user_list(self):
-        pass
+    @staticmethod
+    def user_list():
+        """
+        Returns tha available users with their permissions
+        :return: A dictionary of the type
+        {username: [(prof_1, perm_1), ..., ()]}
+        """
+        sim = SharingInfoFileManagement()
+        conf = sim.load_conf()
 
-    def user_remove(self):
-        pass
+        res = dict()
 
-    def authorize(self):
-        pass
+        users = sim.get_users(conf)
+        for user in users:
+            prof_info = list()
+            user_info = sim._get_user_info(conf, user)
+            for profile in user_info[sim.PROFILES]:
+                prof_info.append(profile[sim.PROFILE_NAME],
+                                 profile[sim.PERMISSION])
+            res[user] = prof_info
 
+    def user_remove(self, username):
+        sim = SharingInfoFileManagement()
+        conf = sim.load_conf()
+        old_conf = str(conf)
+        if sim.del_user(conf, username) == 0:
+            sim.save_conf(conf)
+            # User deleted successfully
+            akf = AuthorizedKeysFileManager()
+            # Getting a copy of the authorized_keys file
+            old_auth_keys = akf.get_authorized_keys()
+            try:
+                # Saving the sharing configuration
+                sim.save_conf(conf)
+                # Now updating the authorized_keys file
+                akf.delete_sharing_entry(username)
+            except:
+                # If something goes wrong, restore the old files
+                sim.save_conf(old_conf)
+                akf.set_authorized_keys(old_auth_keys)
+            return 0
+        else:
+            # User not found
+            return 1
+
+    @staticmethod
+    def authorize(username, profile, new_permissions):
+        # If the given permissions are not correct
+        if not new_permissions in [SharingInfoFileManagement.READ_RIGHT,
+                                   SharingInfoFileManagement.WRITE_RIGHT]:
+            return 1
+        return SharingInfoFileManagement._permission_change()
+
+    @staticmethod
     def deauthorize(self):
-        pass
+        return SharingInfoFileManagement._permission_change(
+            SharingInfoFileManagement.NO_RIGHT)
+
+    @staticmethod
+    def _permission_change(username, profile, new_permissions):
+        sim = SharingInfoFileManagement()
+        conf = sim.load_conf()
+        res = sim.update_user_rights(conf, username, profile, new_permissions)
+        if res == 0:
+            # Successful permission change, saving
+            sim.save_conf(conf)
+        else:
+            # Propagate the results
+            return res
