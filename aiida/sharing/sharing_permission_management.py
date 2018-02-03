@@ -12,7 +12,7 @@ from aiida.sharing.sharing_info_file_management import (
     SharingInfoFileManagement)
 from aiida.sharing.key_management import AuthorizedKeysFileManager
 
-class SharingPermissionManagement:
+class SharingPermissionManagement(object):
 
     @staticmethod
     def user_add(username, public_key):
@@ -41,7 +41,7 @@ class SharingPermissionManagement:
     @staticmethod
     def user_list():
         """
-        Returns tha available users with their permissions
+        Returns the available users with their permissions
         :return: A dictionary of the type
         {username: [(prof_1, perm_1), ..., ()]}
         """
@@ -55,11 +55,14 @@ class SharingPermissionManagement:
             prof_info = list()
             user_info = sim._get_user_info(conf, user)
             for profile in user_info[sim.PROFILES]:
-                prof_info.append(profile[sim.PROFILE_NAME],
-                                 profile[sim.PERMISSION])
+                prof_info.append((profile[sim.PROFILE_NAME],
+                                 profile[sim.PERMISSION]))
             res[user] = prof_info
 
-    def user_remove(self, username):
+        return res
+
+    @staticmethod
+    def user_remove(username):
         sim = SharingInfoFileManagement()
         conf = sim.load_conf()
         old_conf = str(conf)

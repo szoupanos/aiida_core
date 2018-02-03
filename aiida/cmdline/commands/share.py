@@ -15,6 +15,8 @@ from aiida.sharing.sharing_logging import SharingLoggingFactory
 from aiida.sharing.sharing_info_file_management import (
     SharingInfoFileManagement)
 from aiida.sharing.key_management import AuthorizedKeysFileManager
+from aiida.sharing.sharing_permission_management import (
+    SharingPermissionManagement)
 
 class Share(VerdiCommandWithSubcommands):
     """
@@ -107,20 +109,17 @@ def share_user_list(verbose):
     """
     List the available sharing AiiDA users.
     """
-    sim = SharingInfoFileManagement()
-    conf = sim.load_conf()
-    users = sim.get_users(conf)
+    user_list = SharingPermissionManagement.user_list()
     click.echo("The following sharing users were found:")
-    for user in users:
+    for user in user_list.keys():
         click.echo("> " + user)
         if verbose:
-            user_info = sim._get_user_info(conf, user)
-            for profile in user_info[sim.PROFILES]:
-                click.echo("  Profile: " + profile[sim.PROFILE_NAME] +
-                           " , Permissions: " + profile[sim.PERMISSION])
-            if len(user_info[sim.PROFILES]) == 0:
+            user_info = user_list[user]
+            for prof, perms in user_info:
+                click.echo("  Profile: " + prof +
+                           " , Permissions: " + perms)
+            if len(user_info) == 0:
                 click.echo("  No profiles found")
-
 
 @share.command('authorize')
 @click.argument('username')
