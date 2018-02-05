@@ -29,11 +29,12 @@ class SharingPermissionManagement(object):
                 sim.save_conf(conf)
                 # Now updating the authorized_keys file
                 akf.create_sharing_entry(public_key, username)
+                return 0
             except:
                 # If something goes wrong, restore the old files
                 sim.save_conf(old_conf)
                 akf.set_authorized_keys(old_auth_keys)
-            return 0
+                return 2
         else:
             # User already exists
             return 1
@@ -77,11 +78,12 @@ class SharingPermissionManagement(object):
                 sim.save_conf(conf)
                 # Now updating the authorized_keys file
                 akf.delete_sharing_entry(username)
+                return 0
             except:
                 # If something goes wrong, restore the old files
                 sim.save_conf(old_conf)
                 akf.set_authorized_keys(old_auth_keys)
-            return 0
+                return 2
         else:
             # User not found
             return 1

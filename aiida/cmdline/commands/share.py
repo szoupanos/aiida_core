@@ -78,13 +78,23 @@ def share_user_add(username, public_key):
     """
     Add a sharing AiiDA user.
     """
-    sim = SharingInfoFileManagement()
-    conf = sim.load_conf()
-    if sim.add_user(conf, username, public_key) == 0:
-        sim.save_conf(conf)
+    res = SharingPermissionManagement.user_add(username, public_key)
+    if res == 0:
         click.echo("User added successfully")
-    else:
+    elif res == 1:
         click.echo("User already exists")
+    else:
+        click.echo("Unexpected error")
+
+
+
+    # sim = SharingInfoFileManagement()
+    # conf = sim.load_conf()
+    # if sim.add_user(conf, username, public_key) == 0:
+    #     sim.save_conf(conf)
+    #     click.echo("User added successfully")
+    # else:
+    #     click.echo("User already exists")
 
 
 @share_user.command('remove')

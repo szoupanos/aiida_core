@@ -40,11 +40,12 @@ class AuthorizedKeysFileManager:
 
     auth_keys_fullpath = None
 
-    def __init__(self):
+    def __init__(self, given_username=None):
         import getpass
-        self.__init__(username=getpass.getuser())
 
-    def __init__(self, username):
+        if given_username is None:
+            username = getpass.getuser()
+
         # Check if the user exist and if it has a working directory
         try:
             user = pwd.getpwnam(username)
@@ -54,9 +55,7 @@ class AuthorizedKeysFileManager:
             raise ValueError('User home directory does not exist')
 
         # Retrieve the authorized keys relative path
-        auth_keys_relpath = '.ssh/authorized_keys'
-        self.auth_keys_fullpath = self._check_and_create_authorized_keys(
-            auth_keys_relpath)
+        self.auth_keys_fullpath = self._check_and_create_authorized_keys()
 
         if os.path.isfile(self.auth_keys_fullpath):
             self.keys = [AuthorizedKey(key.strip()) for key in
