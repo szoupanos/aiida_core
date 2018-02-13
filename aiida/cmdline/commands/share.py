@@ -103,13 +103,13 @@ def share_user_remove(username):
     """
     Remove a sharing AiiDA user.
     """
-    sim = SharingInfoFileManagement()
-    conf = sim.load_conf()
-    if sim.del_user(conf, username) == 0:
-        sim.save_conf(conf)
+    res = SharingPermissionManagement.user_remove(username)
+    if res == 0:
         click.echo("User deleted successfully")
-    else:
+    elif res == 1:
         click.echo("User not found")
+    else:
+        click.echo("Unexpected error")
 
 
 @share_user.command('list')

@@ -45,6 +45,8 @@ class AuthorizedKeysFileManager:
 
         if given_username is None:
             username = getpass.getuser()
+        else:
+            username = given_username
 
         # Check if the user exist and if it has a working directory
         try:
@@ -55,7 +57,8 @@ class AuthorizedKeysFileManager:
             raise ValueError('User home directory does not exist')
 
         # Retrieve the authorized keys relative path
-        self.auth_keys_fullpath = self._check_and_create_authorized_keys()
+        self.auth_keys_fullpath = self._check_and_create_authorized_keys(
+            username)
 
         if os.path.isfile(self.auth_keys_fullpath):
             self.keys = [AuthorizedKey(key.strip()) for key in
@@ -70,7 +73,7 @@ class AuthorizedKeysFileManager:
             raise ValueError('A username has to be provided')
 
         if given_auth_keys_relpath is None:
-            auth_keys_relpath = './ssh/authorized_keys'
+            auth_keys_relpath = './.ssh/authorized_keys'
         else:
             auth_keys_relpath = given_auth_keys_relpath
 

@@ -1581,7 +1581,7 @@ def fill_in_query(partial_query, originating_entity_str, current_entity_str,
     relationship dictionary is consulted (which shows how to reference
     different AiiDA entities in QueryBuilder.
     To find the dependencies of the relationships of the exported data, the
-    get_all_fields_info_sqla (which described the exported schema and its
+    get_all_fields_info (which described the exported schema and its
     dependencies) is consulted.
     """
 
@@ -1878,7 +1878,7 @@ def export_tree(what, folder, also_parents=True, also_calc_outputs=True,
     if not silent:
         print "STORING GROUP ELEMENTS..."
     groups_uuid = dict()
-    # If a group is in the exported date, we export the group/node correlation
+    # If a group is in the exported data, we export the group/node correlation
     if GROUP_ENTITY_NAME in export_data:
         for curr_group in export_data[GROUP_ENTITY_NAME]:
             group_uuid_qb = QueryBuilder()
