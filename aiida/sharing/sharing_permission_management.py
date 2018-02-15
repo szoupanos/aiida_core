@@ -68,7 +68,6 @@ class SharingPermissionManagement(object):
         conf = sim.load_conf()
         old_conf = str(conf)
         if sim.del_user(conf, username) == 0:
-            sim.save_conf(conf)
             # User deleted successfully
             akf = AuthorizedKeysFileManager()
             # Getting a copy of the authorized_keys file
@@ -89,17 +88,36 @@ class SharingPermissionManagement(object):
             return 1
 
     @staticmethod
+    def _permission_change(username, profile, new_permissions):
+        sim = SharingInfoFileManagement()
+        conf = sim.load_conf()
+        res = sim.update_user_rights(conf, username, profile, new_permissions)
+        if res == 0:
+            sim.save_conf(conf)
+            # Now updating the authorized_keys file
+            raw_ssh_key = sim.get_user_key(conf, username)
+            akf = AuthorizedKeysFileManager('aiida')
+            akf.create_sharing_entry(raw_ssh_key, username, profile)
+            # User permissions changed successfully
+            return 0
+        else:
+            # 1: The given permissions are not valid
+            # 2: User doesn't exist
+            return res
+
+    @staticmethod
     def authorize(username, profile, new_permissions):
         # If the given permissions are not correct
         if not new_permissions in [SharingInfoFileManagement.READ_RIGHT,
                                    SharingInfoFileManagement.WRITE_RIGHT]:
             return 1
-        return SharingInfoFileManagement._permission_change()
+        return SharingPermissionManagement._permission_change(
+            username, profile, new_permissions)
 
     @staticmethod
-    def deauthorize(self):
-        return SharingInfoFileManagement._permission_change(
-            SharingInfoFileManagement.NO_RIGHT)
+    def deauthorize(username, profile):
+        return SharingPermissionManagement._permission_change(
+            username, profile, SharingInfoFileManagement.NO_RIGHT)
 
     @staticmethod
     def _permission_change(username, profile, new_permissions):
