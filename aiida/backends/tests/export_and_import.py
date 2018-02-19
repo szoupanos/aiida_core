@@ -1541,11 +1541,9 @@ class TestLinks(AiidaTestCase):
         finally:
             shutil.rmtree(tmp_folder, ignore_errors=True)
 
-    def test_input_and_create_links_proper(self):
+    def test_recursive_export_input_and_create_links_proper(self):
         """
-        Check that CALL links are not followed in the export procedure with
-        dangling links as a consequence
-
+        Check that CALL, RETURN and CREATE links are followed recursively.
 
             ---------->---------
          __|_       ___        _|_
@@ -1554,7 +1552,7 @@ class TestLinks(AiidaTestCase):
         |____|     |___|      |___|
                      |
                      v  CREATE
-                    ____ 
+                    ____
                    |    |
                    | o1 |
                    |____|
@@ -1562,46 +1560,80 @@ class TestLinks(AiidaTestCase):
         import os, shutil, tempfile
 
         from aiida.orm.data.base import Int
-        from aiida.orm import Node, Data
+        from aiida.orm import Data
+        from aiida.orm import Node
         from aiida.orm.importexport import export
-        from aiida.orm.calculation import Calculation
         from aiida.orm.calculation.inline import InlineCalculation
         from aiida.orm.calculation.work import WorkCalculation
         from aiida.common.links import LinkType
-        from aiida.common.exceptions import NotExistent
         from aiida.orm.querybuilder import QueryBuilder
         tmp_folder = tempfile.mkdtemp()
 
         try:
-            node_calc = InlineCalculation().store()
-            node_work = WorkCalculation().store()
-            node_input = Int(1).store()
-            node_output = Int(2).store()
 
-            node_work.add_link_from(node_input, 'input-to-work', link_type=LinkType.INPUT)
-            node_calc.add_link_from(node_input, 'input-to-calc', link_type=LinkType.INPUT)
-            node_calc.add_link_from(node_work, 'call', link_type=LinkType.CALL)
-            node_output.add_link_from(node_calc, 'output', link_type=LinkType.CREATE)
+            wc2 = WorkCalculation().store()
+            wc1 = WorkCalculation().store()
+            c1 = InlineCalculation().store()
+            ni1 = Int(1).store()
+            ni2 = Int(2).store()
+            no1 = Int(1).store()
+            no2 = Int(2).store()
 
-            export_links = QueryBuilder().append(
-                    Data, project='uuid').append(
-                    InlineCalculation, project='uuid', edge_project=['label', 'type'],
-                        edge_filters={'type':{'in':(LinkType.INPUT.value, )}}
-                ).all() + QueryBuilder().append(
-                    InlineCalculation, project='uuid').append(
-                    Data, project='uuid', edge_project=['label', 'type'],
-                        edge_filters={'type':{'in':(LinkType.CREATE.value, )}}
-                ).all()
+            # Create the connections between workcalculations and calcluations
+            wc1.add_link_from(wc2, 'call', link_type=LinkType.CALL)
+            c1.add_link_from(wc1, 'call', link_type=LinkType.CALL)
+
+            # Connect the first data node to wc1 & c1
+            wc1.add_link_from(ni1, 'ni1-to-wc1',
+                              link_type=LinkType.INPUT)
+            c1.add_link_from(ni1, 'ni1-to-c1',
+                             link_type=LinkType.INPUT)
+
+            # Connect the second data node to wc1 & c1
+            wc1.add_link_from(ni2, 'ni2-to-wc1',
+                              link_type=LinkType.INPUT)
+            c1.add_link_from(ni2, 'ni2-to-c1',
+                             link_type=LinkType.INPUT)
+
+            # Connecting the first output node to wc1 & c1
+            no1.add_link_from(wc1, 'output',
+                              link_type=LinkType.RETURN)
+            no1.add_link_from(c1, 'output',
+                              link_type=LinkType.CREATE)
+
+            # Connecting the second output node to wc1 & c1
+            no2.add_link_from(wc1, 'output',
+                              link_type=LinkType.RETURN)
+            no2.add_link_from(c1, 'output',
+                              link_type=LinkType.CREATE)
+
+            # Getting the input, create, return and call links
+            qb = QueryBuilder()
+            qb.append(Node, project='uuid')
+            qb.append(Node, project='uuid',
+                edge_project=['label', 'type'],
+                edge_filters={'type': {'in': (LinkType.INPUT.value,
+                                              LinkType.CREATE.value,
+                                              LinkType.RETURN.value,
+                                              LinkType.CALL.value)}})
+            export_links = qb.all()
+
+            # Adding the input links
+            qb = QueryBuilder()
+            qb.append(Node, project='uuid')
+            qb.append(Node, project='uuid',
+                edge_project=['label', 'type'],
+                edge_filters={'type': {'in': (LinkType.INPUT.value,)}})
+            export_links.appen.all()
 
             export_file = os.path.join(tmp_folder, 'export.tar.gz')
-            export([node_output.dbnode], outfile=export_file, silent=True)
+            export([wc2.dbnode], outfile=export_file, silent=True)
 
             self.clean_db()
             self.insert_data()
 
             import_data(export_file, silent=True)
             import_links = self.get_all_node_links()
-
 
             export_set = [tuple(_) for _ in export_links]
             import_set = [tuple(_) for _ in import_links]
@@ -1610,10 +1642,79 @@ class TestLinks(AiidaTestCase):
         finally:
             shutil.rmtree(tmp_folder, ignore_errors=True)
 
+
+    # The following is obsolete
+    # def test_input_and_create_links_proper(self):
+    #     """
+    #     Check that CALL links are not followed in the export procedure with
+    #     dangling links as a consequence
+    #
+    #
+    #         ---------->---------
+    #      __|_       ___        _|_
+    #     |    | INP |   | CALL |   |
+    #     | i1 | --> | C | <--  | W |
+    #     |____|     |___|      |___|
+    #                  |
+    #                  v  CREATE
+    #                 ____
+    #                |    |
+    #                | o1 |
+    #                |____|
+    #     """
+    #     import os, shutil, tempfile
+    #
+    #     from aiida.orm.data.base import Int
+    #     from aiida.orm import Data
+    #     from aiida.orm.importexport import export
+    #     from aiida.orm.calculation.inline import InlineCalculation
+    #     from aiida.orm.calculation.work import WorkCalculation
+    #     from aiida.common.links import LinkType
+    #     from aiida.orm.querybuilder import QueryBuilder
+    #     tmp_folder = tempfile.mkdtemp()
+    #
+    #     try:
+    #         node_calc = InlineCalculation().store()
+    #         node_work = WorkCalculation().store()
+    #         node_input = Int(1).store()
+    #         node_output = Int(2).store()
+    #
+    #         node_work.add_link_from(node_input, 'input-to-work', link_type=LinkType.INPUT)
+    #         node_calc.add_link_from(node_input, 'input-to-calc', link_type=LinkType.INPUT)
+    #         node_calc.add_link_from(node_work, 'call', link_type=LinkType.CALL)
+    #         node_output.add_link_from(node_calc, 'output', link_type=LinkType.CREATE)
+    #
+    #         export_links = QueryBuilder().append(
+    #                 Data, project='uuid').append(
+    #                 InlineCalculation, project='uuid', edge_project=['label', 'type'],
+    #                     edge_filters={'type':{'in':(LinkType.INPUT.value, )}}
+    #             ).all() + QueryBuilder().append(
+    #                 InlineCalculation, project='uuid').append(
+    #                 Data, project='uuid', edge_project=['label', 'type'],
+    #                     edge_filters={'type':{'in':(LinkType.CREATE.value, )}}
+    #             ).all()
+    #
+    #         export_file = os.path.join(tmp_folder, 'export.tar.gz')
+    #         export([node_output.dbnode], outfile=export_file, silent=True)
+    #
+    #         self.clean_db()
+    #         self.insert_data()
+    #
+    #         import_data(export_file, silent=True)
+    #         import_links = self.get_all_node_links()
+    #
+    #
+    #         export_set = [tuple(_) for _ in export_links]
+    #         import_set = [tuple(_) for _ in import_links]
+    #
+    #         self.assertEquals(set(export_set), set(import_set))
+    #     finally:
+    #         shutil.rmtree(tmp_folder, ignore_errors=True)
+
     def test_links_for_workflows(self):
         """
-        Check that CALL links are not followed in the export procedure, and the only creation
-        is followed for data:
+        Check that CALL links are not followed in the export procedure, and
+        the only creation is followed for data:
          ____       ____        ____
         |    | INP |    | CALL |    |
         | i1 | --> | w1 | <--- | w2 |
@@ -1628,14 +1729,9 @@ class TestLinks(AiidaTestCase):
         import os, shutil, tempfile
 
         from aiida.orm.data.base import Int
-        from aiida.orm import Node, Data
         from aiida.orm.importexport import export
-        from aiida.orm.calculation import Calculation
-        from aiida.orm.calculation.inline import InlineCalculation
         from aiida.orm.calculation.work import WorkCalculation
         from aiida.common.links import LinkType
-        from aiida.common.exceptions import NotExistent
-        from aiida.orm.querybuilder import QueryBuilder
         tmp_folder = tempfile.mkdtemp()
 
         try:
