@@ -8,94 +8,223 @@
 # For further information please visit http://www.aiida.net               #
 ###########################################################################
 
+import inspect
 from aiida.common.exceptions import ModificationNotAllowed
 from aiida.common.lang import override
 from aiida.common.links import LinkType
+from aiida.common.utils import classproperty
+
+
+class FunctionCalculationMixin(object):
+    """
+    This mixin should be used for Calculation subclasses that are used to record the execution
+    of a python function. For example the Calculation nodes that are used for a function that
+    was wrapped by the `workfunction` or `make_inline` function decorators. The `store_source_info`
+    method can then be called with the wrapped function to store information about that function
+    in the calculation node through the inspect module. Various property getters are defined to
+    later retrieve that information from the node
+    """
+
+    FUNCTION_NAME_KEY = 'function_name'
+    FUNCTION_NAMESPACE_KEY = 'function_namespace'
+    FUNCTION_STARTING_LINE_NUMBER_KEY = 'function_starting_line_number'
+    FUNCTION_SOURCE_FILE_PATH = 'source_file'
+
+    def store_source_info(self, func):
+        """
+        Retrieve source information about the wrapped function `func` through the inspect module,
+        and store it in the attributes and repository of the node. The function name, namespace
+        and the starting line number in the source file will be stored in the attributes. The
+        source file itself will be copied into the repository
+
+        :param func: the function to inspect and whose information to store in the node
+        """
+        self._set_function_name(func.__name__)
+
+        try:
+            source_code, starting_line_number = inspect.getsourcelines(func)
+            self._set_function_starting_line_number(starting_line_number)
+        except (IOError, OSError):
+            pass
+
+        try:
+            self._set_function_namespace(func.func_globals['__name__'])
+        except Exception:
+            pass
+
+        try:
+            source_file_path = inspect.getsourcefile(func)
+            with open(source_file_path) as handle:
+                self._set_source_file(handle)
+        except (IOError, OSError):
+            pass
+
+    @property
+    def function_name(self):
+        """
+        Return the function name of the wrapped function
+
+        :returns: the function name or None
+        """
+        return self.get_attr(self.FUNCTION_NAME_KEY, None)
+
+    def _set_function_name(self, function_name):
+        """
+        Set the function name of the wrapped function
+
+        :param function_name: the function name
+        """
+        self._set_attr(self.FUNCTION_NAME_KEY, function_name)
+
+    @property
+    def function_namespace(self):
+        """
+        Return the function namespace of the wrapped function
+
+        :returns: the function namespace or None
+        """
+        return self.get_attr(self.FUNCTION_NAMESPACE_KEY, None)
+
+    def _set_function_namespace(self, function_namespace):
+        """
+        Set the function namespace of the wrapped function
+
+        :param function_namespace: the function namespace
+        """
+        self._set_attr(self.FUNCTION_NAMESPACE_KEY, function_namespace)
+
+    @property
+    def function_starting_line_number(self):
+        """
+        Return the starting line number of the wrapped function in its source file
+
+        :returns: the starting line number or None
+        """
+        return self.get_attr(self.FUNCTION_STARTING_LINE_NUMBER_KEY, None)
+
+    def _set_function_starting_line_number(self, function_starting_line_number):
+        """
+        Set the starting line number of the wrapped function in its source file
+
+        :param function_starting_line_number: the starting line number
+        """
+        self._set_attr(self.FUNCTION_STARTING_LINE_NUMBER_KEY, function_starting_line_number)
+
+    @property
+    def function_source_file(self):
+        """
+        Return the absolute path to the source file in the repository
+
+        :returns: the absolute path of the source file in the repository, or None if it does not exist
+        """
+        try:
+            return self.folder.get_abs_path(self.FUNCTION_SOURCE_FILE_PATH, check_existence=True)
+        except OSError:
+            return None
+
+    def _set_source_file(self, source_file_handle):
+        """
+        Store a copy of the source file from `source_file_handle` in the repository
+
+        :param source_file_handle: a file like object with the source file
+        """
+        self.folder.create_file_from_filelike(source_file_handle, self.FUNCTION_SOURCE_FILE_PATH)
 
 
 class Sealable(object):
-    # The name of the attribute to indicate if the node is sealed or not.
-    SEALED_KEY = '_sealed'
 
-    def add_link_from(self, src, label=None, link_type=LinkType.INPUT):
+    SEALED_KEY = 'sealed'
+
+    @classproperty
+    def _updatable_attributes(cls):
+        return (cls.SEALED_KEY,)
+
+    def add_link_from(self, src, label=None, link_type=LinkType.UNSPECIFIED):
         """
-        Add a link with a code as destination.
+        Add a link from a node
 
         You can use the parameters of the base Node class, in particular the
         label parameter to label the link.
 
-        :param src: a node of the database. It cannot be a Calculation object.
-        :param str label: Name of the link. Default=None
-        :param link_type: The type of link, must be one of the enum values form
+        :param src: the node to add a link from
+        :param str label: name of the link
+        :param link_type: type of the link, must be one of the enum values from
           :class:`~aiida.common.links.LinkType`
         """
-        assert not self.is_sealed, \
-            "Cannot add incoming links to a sealed calculation node"
+        if self.is_sealed:
+            raise ModificationNotAllowed('Cannot add a link from a sealed node')
 
-        super(Sealable, self).add_link_from(src, label=label,
-                                            link_type=link_type)
+        super(Sealable, self).add_link_from(src, label=label, link_type=link_type)
 
     @property
     def is_sealed(self):
+        """
+        Returns whether the node is sealed, i.e. whether the sealed attribute has been set to True
+        """
         return self.get_attr(self.SEALED_KEY, False)
 
     def seal(self):
+        """
+        Seal the node by setting the sealed attribute to True
+        """
         if not self.is_sealed:
             self._set_attr(self.SEALED_KEY, True)
-
-
-class SealableWithUpdatableAttributes(Sealable):
-    _updatable_attributes = tuple()
 
     @override
     def _set_attr(self, key, value, **kwargs):
         """
-        Set a new attribute to the Node (in the DbAttribute table).
+        Set a new attribute
 
-        :param str key: key name
-        :param value: its value
-        :raise ModificationNotAllowed: if such attribute cannot be added (e.g.
-            because the node was already stored, and the attribute is not listed
-            as updatable).
-
-        :raise ValidationError: if the key is not valid (e.g. it contains the
-            separator symbol).
+        :param key: attribute name
+        :param value: attribute value
+        :raise ModificationNotAllowed: if the node is already sealed or if the node is already stored
+            and the attribute is not updatable
         """
-        if self.is_sealed and key not in self._updatable_attributes:
-            raise ModificationNotAllowed(
-                "Cannot change the attributes of a sealed calculation.\n"
-                "Attempted to set '{}'".format(key))
-        super(SealableWithUpdatableAttributes, self)._set_attr(key, value, **kwargs)
+        if self.is_sealed:
+            raise ModificationNotAllowed('Cannot change the attributes of a sealed node')
+
+        if self.is_stored and key not in self._updatable_attributes:
+            raise ModificationNotAllowed('Cannot change the immutable attributes of a stored node')
+
+        super(Sealable, self)._set_attr(key, value, stored_check=False, **kwargs)
 
     @override
     def _del_attr(self, key):
         """
-        Delete an attribute.
+        Delete an attribute
 
-        :param key: attribute to delete.
-        :raise AttributeError: if key does not exist.
-        :raise ModificationNotAllowed: if the Node was already stored.
+        :param key: attribute name
+        :raise AttributeError: if key does not exist
+        :raise ModificationNotAllowed: if the node is already sealed or if the node is already stored
+            and the attribute is not updatable
         """
-        if self.is_sealed and key not in self._updatable_attributes:
-            raise ModificationNotAllowed(
-                "Cannot delete the attributes of a sealed calculation.\n"
-                "Attempted to delete '{}'".format(key))
-        super(SealableWithUpdatableAttributes, self)._del_attr(key)
+        if self.is_sealed:
+            raise ModificationNotAllowed('Cannot change the attributes of a sealed node')
 
-    def iter_updatable_attrs(self):
-        for k in list(self._updatable_attributes):
-            try:
-                yield (k, self.get_attr(k))
-            except AttributeError:
-                pass
+        if self.is_stored and key not in self._updatable_attributes:
+            raise ModificationNotAllowed('Cannot change the immutable attributes of a stored node')
+
+        super(Sealable, self)._del_attr(key, stored_check=False)
 
     @override
     def copy(self, include_updatable_attrs=False):
-        newobj = super(SealableWithUpdatableAttributes, self).copy()
+        """
+        Create a copy of the node minus the updatable attributes if include_updatable_attrs is False
+        """
+        clone = super(Sealable, self).copy()
 
-        # Remove the updatable attributes
-        if not include_updatable_attrs:
-            for k, v in self.iter_updatable_attrs():
-                newobj._del_attr(k)
+        if include_updatable_attrs is False:
+            for key, value in self._iter_updatable_attributes():
+                clone._del_attr(key)
 
-        return newobj
+        return clone
+
+    def _iter_updatable_attributes(self):
+        """
+        Iterate over the updatable attributes and yield key value pairs
+        """
+        for key in list(self._updatable_attributes):
+            try:
+                yield (key, self.get_attr(key))
+            except AttributeError:
+                pass

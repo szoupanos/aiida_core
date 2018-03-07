@@ -13,11 +13,13 @@ results. These are general and contain only the main logic; where appropriate,
 the routines make reference to the suitable plugins for all
 plugin-specific operations.
 """
-from aiida.backends.utils import get_authinfo
+import os
+from backports import tempfile
+
 from aiida.common.datastructures import calc_states
 from aiida.scheduler.datastructures import job_states
 from aiida.common.exceptions import (
-    AuthenticationError,
+    NotExistent,
     ConfigurationError,
     ModificationNotAllowed,
 )
@@ -28,19 +30,17 @@ from aiida.orm import load_node
 from aiida.orm import DataFactory
 from aiida.orm.data.folder import FolderData
 from aiida.common.log import get_dblogger_extra
-import os
 
 
-# Until we fix the broken daemon logger https://github.com/aiidateam/aiida_core/issues/943
-# execlogger = aiidalogger.getChild('execmanager')
-import logging
-execlogger = logging.getLogger('execmanager')
+execlogger = aiidalogger.getChild('execmanager')
 
 
 def update_running_calcs_status(authinfo):
     """
     Update the states of calculations in WITHSCHEDULER status belonging
-    to user and machine as defined in the 'dbauthinfo' table.
+    to user and machine as defined by the AuthInfo object
+
+    :param authinfo: a AuthInfo instance
     """
     from aiida.orm import JobCalculation, Computer
     from aiida.scheduler.datastructures import JobInfo
@@ -53,7 +53,7 @@ def update_running_calcs_status(authinfo):
     execlogger.debug(
         "Updating running calc status for user {} "
         "and machine {}".format(
-            authinfo.aiidauser.email, authinfo.dbcomputer.name)
+            authinfo.user.email, authinfo.computer.name)
     )
 
     # This will be returned to the caller
@@ -62,8 +62,8 @@ def update_running_calcs_status(authinfo):
     qmanager = QueryFactory()()
     calcs_to_inquire = qmanager.query_jobcalculations_by_computer_user_state(
         state=calc_states.WITHSCHEDULER,
-        computer=authinfo.dbcomputer,
-        user=authinfo.aiidauser
+        computer=authinfo.computer.dbcomputer,
+        user=authinfo.user.dbuser
     )
     # I avoid to open an ssh connection if there are
     # no calcs with state WITHSCHEDULER
@@ -72,7 +72,7 @@ def update_running_calcs_status(authinfo):
 
     # NOTE: no further check is done that machine and
     # aiidauser are correct for each job in calcs
-    scheduler = Computer(dbcomputer=authinfo.dbcomputer).get_scheduler()
+    scheduler = authinfo.computer.get_scheduler()
     transport = authinfo.get_transport()
 
     # Open connection
@@ -125,6 +125,7 @@ def update_job(job, scheduler=None):
     :return: True if the job has is 'computed', False otherwise
     :rtype: bool
     """
+    from aiida.orm.authinfo import AuthInfo
     job_id = job.get_job_id()
     if job_id is None:
         execlogger.error(
@@ -134,7 +135,7 @@ def update_job(job, scheduler=None):
 
     if scheduler is None:
         scheduler = job.get_computer().get_scheduler()
-        authinfo = get_authinfo(job.get_computer(), job.get_user())
+        authinfo = AuthInfo.get(computer=job.get_computer(), user=job.get_user())
         transport = authinfo.get_transport()
         scheduler.set_transport()
     else:
@@ -187,6 +188,7 @@ def update_job_calc_from_detailed_job_info(calc, detailed_job_info):
 
 # region Daemon tasks
 def retrieve_jobs():
+    from aiida.orm.authinfo import AuthInfo
     from aiida.backends.utils import QueryFactory
 
     qmanager = QueryFactory()()
@@ -209,7 +211,7 @@ def retrieve_jobs():
         execlogger.debug("({},{}) pair to check".format(
             aiidauser.email, computer.name))
         try:
-            authinfo = get_authinfo(computer.dbcomputer, aiidauser._dbuser)
+            authinfo = AuthInfo.get(computer=computer, user=aiidauser)
             retrieve_computed_for_authinfo(authinfo)
         except Exception as e:
             msg = ("Error while retrieving calculation status for "
@@ -227,6 +229,7 @@ def update_jobs():
     """
     calls an update for each set of pairs (machine, aiidauser)
     """
+    from aiida.orm.authinfo import AuthInfo
     from aiida.backends.utils import QueryFactory
 
     qmanager = QueryFactory()()
@@ -243,7 +246,7 @@ def update_jobs():
         )
 
         try:
-            authinfo = get_authinfo(computer.dbcomputer, aiidauser._dbuser)
+            authinfo = AuthInfo.get(computer=computer, user=aiidauser)
             computed_calcs = update_running_calcs_status(authinfo)
         except Exception as e:
             msg = ("Error while updating calculation status "
@@ -261,9 +264,10 @@ def submit_jobs():
     """
     Submit all jobs in the TOSUBMIT state.
     """
+    from aiida.orm.authinfo import AuthInfo
     from aiida.orm import JobCalculation, Computer, User
     from aiida.common.log import get_dblogger_extra
-    from aiida.backends.utils import get_authinfo, QueryFactory
+    from aiida.backends.utils import QueryFactory
 
     qmanager = QueryFactory()()
     # I create a unique set of pairs (computer, aiidauser)
@@ -280,8 +284,8 @@ def submit_jobs():
 
         try:
             try:
-                authinfo = get_authinfo(computer.dbcomputer, aiidauser._dbuser)
-            except AuthenticationError:
+                authinfo = AuthInfo.get(computer=computer, user=aiidauser)
+            except NotExistent:
                 # TODO!!
                 # Put each calculation in the SUBMISSIONFAILED state because
                 # I do not have AuthInfo to submit them
@@ -329,7 +333,9 @@ def submit_jobs():
 def submit_jobs_with_authinfo(authinfo):
     """
     Submit jobs in TOSUBMIT status belonging
-    to user and machine as defined in the 'dbauthinfo' table.
+    to user and machine as defined by the AuthInfo object.
+
+    :param authinfo: a AuthInfo object
     """
     from aiida.orm import JobCalculation
     from aiida.common.log import get_dblogger_extra
@@ -343,14 +349,14 @@ def submit_jobs_with_authinfo(authinfo):
 
     execlogger.debug("Submitting jobs for user {} "
                      "and machine {}".format(
-        authinfo.aiidauser.email, authinfo.dbcomputer.name))
+        authinfo.user.email, authinfo.computer.name))
 
     qmanager = QueryFactory()()
     # I create a unique set of pairs (computer, aiidauser)
     calcs_to_inquire = qmanager.query_jobcalculations_by_computer_user_state(
             state=calc_states.TOSUBMIT,
-        computer=authinfo.dbcomputer,
-        user=authinfo.aiidauser)
+        computer=authinfo.computer.dbcomputer,
+        user=authinfo.user.dbuser)
 
 
     # I avoid to open an ssh connection if there are
@@ -409,10 +415,10 @@ def submit_calc(calc, authinfo, transport=None):
 
     :param calc: the calculation to submit
         (an instance of the aiida.orm.JobCalculation class)
-    :param authinfo: the authinfo for this calculation.
+    :param authinfo: the AuthInfo object for this calculation.
     :param transport: if passed, must be an already opened transport. No checks
         are done on the consistency of the given transport with the transport
-        of the computer defined in the authinfo.
+        of the computer defined in the AuthInfo.
     """
     from aiida.orm import Code, Computer
     from aiida.common.folders import SandboxFolder
@@ -460,7 +466,7 @@ def submit_calc(calc, authinfo, transport=None):
         if must_open_t:
             t.open()
 
-        s = Computer(dbcomputer=authinfo.dbcomputer).get_scheduler()
+        s = authinfo.computer.get_scheduler()
         s.set_transport(t)
 
         computer = calc.get_computer()
@@ -668,8 +674,8 @@ def retrieve_computed_for_authinfo(authinfo):
     # I create a unique set of pairs (computer, aiidauser)
     calcs_to_retrieve = qmanager.query_jobcalculations_by_computer_user_state(
         state=calc_states.COMPUTED,
-        computer=authinfo.dbcomputer,
-        user=authinfo.aiidauser)
+        computer=authinfo.computer.dbcomputer,
+        user=authinfo.user.dbuser)
 
 
     retrieved = []
@@ -687,49 +693,53 @@ def retrieve_computed_for_authinfo(authinfo):
     return retrieved
 
 def retrieve_and_parse(calc, transport=None):
+    from aiida.orm.authinfo import AuthInfo
+
     if transport is None:
-        authinfo = get_authinfo(calc.get_computer(), calc.get_user())
+        authinfo = AuthInfo.get(computer=calc.get_computer(), user=calc.get_user())
         transport = authinfo.get_transport()
 
     logger_extra = get_dblogger_extra(calc)
     transport._set_logger_extra(logger_extra)
 
-    try:
-        retrieved_temporary_folder = retrieve_all(calc, transport, logger_extra)
-    except Exception:
-        import traceback
+    with tempfile.TemporaryDirectory() as retrieved_temporary_folder:
 
-        tb = traceback.format_exc()
-        newextradict = logger_extra.copy()
-        newextradict['full_traceback'] = tb
+        try:
+            retrieve_all(calc, transport, retrieved_temporary_folder, logger_extra)
+        except Exception:
+            import traceback
 
-        execlogger.error(
-            "Error retrieving calc {}. Traceback: {}".format(calc.pk, tb),
-            extra=newextradict
-        )
-        _set_state_noraise(calc, calc_states.RETRIEVALFAILED)
-        return False
+            tb = traceback.format_exc()
+            newextradict = logger_extra.copy()
+            newextradict['full_traceback'] = tb
 
-    try:
-        parse_results(calc, retrieved_temporary_folder, logger_extra)
-    except Exception:
-        import traceback
+            execlogger.error(
+                "Error retrieving calc {}. Traceback: {}".format(calc.pk, tb),
+                extra=newextradict
+            )
+            _set_state_noraise(calc, calc_states.RETRIEVALFAILED)
+            return False
 
-        tb = traceback.format_exc()
-        newextradict = logger_extra.copy()
-        newextradict['full_traceback'] = tb
-        execlogger.error(
-            "Error parsing calc {}. Traceback: {}".format(calc.pk, tb),
-            extra=newextradict
-        )
-        # TODO: add a 'comment' to the calculation
-        _set_state_noraise(calc, calc_states.PARSINGFAILED)
-        return False
+        try:
+            parse_results(calc, retrieved_temporary_folder, logger_extra)
+        except Exception:
+            import traceback
+
+            tb = traceback.format_exc()
+            newextradict = logger_extra.copy()
+            newextradict['full_traceback'] = tb
+            execlogger.error(
+                "Error parsing calc {}. Traceback: {}".format(calc.pk, tb),
+                extra=newextradict
+            )
+            # TODO: add a 'comment' to the calculation
+            _set_state_noraise(calc, calc_states.PARSINGFAILED)
+            return False
 
     return True
 
 
-def retrieve_all(job, transport, logger_extra=None):
+def retrieve_all(job, transport, retrieved_temporary_folder, logger_extra=None):
     try:
         job._set_state(calc_states.RETRIEVING)
     except ModificationNotAllowed:
@@ -764,7 +774,7 @@ def retrieve_all(job, transport, logger_extra=None):
         retrieve_singlefile_list = job._get_retrieve_singlefile_list()
 
         with SandboxFolder() as folder:
-            retrieve_files_from_list(job, transport, folder, retrieve_list)
+            retrieve_files_from_list(job, transport, folder.abspath, retrieve_list)
             # Here I retrieved everything; now I store them inside the calculation
             retrieved_files.replace_with_folder(folder.abspath, overwrite=True)
 
@@ -772,20 +782,15 @@ def retrieve_all(job, transport, logger_extra=None):
         with SandboxFolder() as folder:
             _retrieve_singlefiles(job, transport, folder, retrieve_singlefile_list, logger_extra)
 
-        # Retrieve the temporary files in a separate temporary folder if any files were
+        # Retrieve the temporary files in the retrieved_temporary_folder if any files were
         # specified in the 'retrieve_temporary_list' key
         if retrieve_temporary_list:
-            retrieved_temporary_folder = FolderData()
-            with SandboxFolder() as folder:
-                retrieve_files_from_list(job, transport, folder, retrieve_temporary_list)
-                retrieved_temporary_folder.replace_with_folder(folder.abspath, overwrite=True)
+            retrieve_files_from_list(job, transport, retrieved_temporary_folder, retrieve_temporary_list)
 
             # Log the files that were retrieved in the temporary folder
-            for entry in retrieved_temporary_folder.get_folder_list():
+            for filename in os.listdir(retrieved_temporary_folder):
                 execlogger.debug("[retrieval of calc {}] Retrieved temporary file or folder '{}'".format(
-                job.pk, entry), extra=logger_extra)
-        else:
-            retrieved_temporary_folder = None
+                job.pk, filename), extra=logger_extra)
 
         # Store everything
         execlogger.debug(
@@ -794,26 +799,38 @@ def retrieve_all(job, transport, logger_extra=None):
             extra=logger_extra)
         retrieved_files.store()
 
-    return retrieved_temporary_folder
-
 
 def parse_results(job, retrieved_temporary_folder=None, logger_extra=None):
+    """
+    Parse the results for a given JobCalculation (job)
+
+    :returns: integer exit code, where 0 indicates success and non-zero failure
+    """
+    from aiida.orm.calculation.job import JobCalculationFinishStatus
+
     job._set_state(calc_states.PARSING)
 
     Parser = job.get_parserclass()
 
-    # If no parser is set, the calculation is successful
-    successful = True
     if Parser is not None:
+
         parser = Parser(job)
-        successful, new_nodes_tuple = parser.parse_from_calc(retrieved_temporary_folder)
+        exit_code, new_nodes_tuple = parser.parse_from_calc(retrieved_temporary_folder)
+
+        # Some implementations of parse_from_calc may still return a boolean for the exit_code
+        # If we get True we convert to 0, for false we simply use the generic value that
+        # maps to the calculation state FAILED
+        if isinstance(exit_code, bool) and exit_code is True:
+            exit_code = 0
+        elif isinstance(exit_code, bool) and exit_code is False:
+            exit_code = JobCalculationFinishStatus[calc_states.FAILED]
 
         for label, n in new_nodes_tuple:
             n.add_link_from(job, label=label, link_type=LinkType.CREATE)
             n.store()
 
     try:
-        if successful:
+        if exit_code == 0:
             job._set_state(calc_states.FINISHED)
         else:
             job._set_state(calc_states.FAILED)
@@ -822,14 +839,14 @@ def parse_results(job, retrieved_temporary_folder=None, logger_extra=None):
         # in order to avoid useless error messages, I just ignore
         pass
 
-    if not successful:
+    if exit_code is not 0:
         execlogger.error("[parsing of calc {}] "
                          "The parser returned an error, but it should have "
                          "created an output node with some partial results "
                          "and warnings. Check there for more information on "
                          "the problem".format(job.pk), extra=logger_extra)
 
-    return successful
+    return exit_code
 
 
 def _update_job_calc(calc, scheduler, job_info):
@@ -957,11 +974,9 @@ def retrieve_files_from_list(calculation, transport, folder, retrieve_list):
     upto what level of the original remotepath nesting the files will be copied.
 
     :param transport: the Transport instance
-    :param folder: a local Folder instance for the transport to store files into
+    :param folder: an absolute path to a folder to copy files in
     :param retrieve_list: the list of files to retrieve
     """
-    import os
-
     for item in retrieve_list:
         if isinstance(item, list):
             tmp_rname, tmp_lname, depth = item
@@ -979,7 +994,7 @@ def retrieve_files_from_list(calculation, transport, folder, retrieve_list):
             if depth > 1:  # create directories in the folder, if needed
                 for this_local_file in local_names:
                     new_folder = os.path.join(
-                        folder.abspath,
+                        folder,
                         os.path.split(this_local_file)[0])
                     if not os.path.exists(new_folder):
                         os.makedirs(new_folder)
@@ -993,4 +1008,4 @@ def retrieve_files_from_list(calculation, transport, folder, retrieve_list):
 
         for rem, loc in zip(remote_names, local_names):
             transport.logger.debug("[retrieval of calc {}] Trying to retrieve remote item '{}'".format(calculation.pk, rem))
-            transport.get(rem, os.path.join(folder.abspath, loc), ignore_nonexisting=True)
+            transport.get(rem, os.path.join(folder, loc), ignore_nonexisting=True)

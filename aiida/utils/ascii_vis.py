@@ -128,16 +128,9 @@ def _generate_node_label(node, node_attr, show_pk):
     :return: The generated label
     :rtype: str
     """
-
     label = None
     if node_attr is None:
-        attrs = node.get_attrs()
-        # Try a list of default ones
-        for l in ['value', 'function_name', '_process_label']:
-            try:
-                label = str(attrs[l])
-            except KeyError:
-                pass
+        label = node.process_label
     else:
         try:
             label = str(getattr(node, node_attr))
@@ -164,16 +157,30 @@ def _ctime(node):
 def calc_info(calc_node):
     from aiida.orm.calculation.work import WorkCalculation
     from aiida.orm.calculation.job import JobCalculation
+    from aiida.orm.calculation.function import FunctionCalculation
 
     if isinstance(calc_node, WorkCalculation):
-        label = calc_node.get_attr('_process_label')
-        state = calc_node.get_attr('process_state')
+        plabel = calc_node.process_label
+        pstate = calc_node.process_state
+        winfo = calc_node.stepper_state_info
+
+        if winfo is None:
+            s = u'{} <pk={}> [{}]'.format(plabel, calc_node.pk, pstate)
+        else:
+            s = u'{} <pk={}> [{}] [{}]'.format(plabel, calc_node.pk, pstate, winfo)
+
     elif isinstance(calc_node, JobCalculation):
-        label = type(calc_node).__name__
-        state = str(calc_node.get_state())
+        clabel = type(calc_node).__name__
+        cstate = str(calc_node.get_state())
+        s = u'{} <pk={}> [{}]'.format(clabel, calc_node.pk, cstate)
+    elif isinstance(calc_node, FunctionCalculation):
+        plabel = calc_node.process_label
+        pstate = calc_node.process_state
+        s = u'{} <pk={}> [{}]'.format(plabel, calc_node.pk, pstate)
     else:
-        raise TypeError("Unknown type")
-    return u"{} <pk={}> [{}]".format(label, calc_node.pk, state)
+        raise TypeError('Unknown type: {}'.format(type(calc_node)))
+
+    return s
 
 
 def print_call_graph(calc_node, info_fn=calc_info):
@@ -190,6 +197,7 @@ def print_call_graph(calc_node, info_fn=calc_info):
 def build_call_graph(calc_node, info_fn=calc_info):
     info_string = info_fn(calc_node)
     called = calc_node.called
+    called.sort(key=lambda x: x.ctime)
     if called:
         return info_string, [build_call_graph(child, info_fn) for child in called]
     else:

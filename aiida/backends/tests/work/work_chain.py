@@ -16,13 +16,30 @@ import unittest
 from aiida.backends.testbase import AiidaTestCase
 from aiida.common.links import LinkType
 from aiida.daemon.workflowmanager import execute_steps
-from aiida.orm.data.base import Int, Str, Bool
+from aiida.orm.data.bool import Bool
+from aiida.orm.data.float import Float
+from aiida.orm.data.int import Int
+from aiida.orm.data.str import Str
 from aiida.work.utils import ProcessStack
 from aiida.workflows.wf_demo import WorkflowDemo
 from aiida import work
 from aiida.work.workchain import *
 
 from . import utils
+
+
+def run_and_check_success(process_class, **kwargs):
+    """
+    Instantiates the process class and executes it followed by a check
+    that it is finished successfully
+
+    :returns: instance of process
+    """
+    process = process_class(inputs=kwargs)
+    process.execute()
+    assert process.calc.is_finished_ok == True
+
+    return process
 
 
 class Wf(work.WorkChain):
@@ -98,6 +115,44 @@ class Wf(work.WorkChain):
         self.finished_steps[function_name] = True
 
 
+class ReturnWorkChain(WorkChain):
+
+    FAILURE_STATUS = 1
+
+    @classmethod
+    def define(cls, spec):
+        super(ReturnWorkChain, cls).define(spec)
+        spec.input('success', valid_type=Bool)
+        spec.outline(
+            cls.failure,
+            cls.success
+        )
+
+    def failure(self):
+        if self.inputs.success.value is False:
+            return self.FAILURE_STATUS
+
+    def success(self):
+        return
+
+
+class TestFinishStatus(AiidaTestCase):
+
+    def test_failing_workchain(self):
+        result, node = work.launch.run_get_node(ReturnWorkChain, success=Bool(False))
+        self.assertEquals(node.finish_status, ReturnWorkChain.FAILURE_STATUS)
+        self.assertEquals(node.is_finished, True)
+        self.assertEquals(node.is_finished_ok, False)
+        self.assertEquals(node.is_failed, True)
+
+    def test_successful_workchain(self):
+        result, node = work.launch.run_get_node(ReturnWorkChain, success=Bool(True))
+        self.assertEquals(node.finish_status, 0)
+        self.assertEquals(node.is_finished, True)
+        self.assertEquals(node.is_finished_ok, True)
+        self.assertEquals(node.is_failed, False)
+
+
 class IfTest(work.WorkChain):
     @classmethod
     def define(cls, spec):
@@ -146,6 +201,7 @@ class TestContext(AiidaTestCase):
 
 
 class TestWorkchain(AiidaTestCase):
+
     def setUp(self):
         super(TestWorkchain, self).setUp()
         self.assertEquals(len(ProcessStack.stack()), 0)
@@ -214,7 +270,7 @@ class TestWorkchain(AiidaTestCase):
                 assert 'b' in self.inputs
 
         x = Int(1)
-        work.launch.run(Wf, a=x, b=x)
+        run_and_check_success(Wf, a=x, b=x)
 
     def test_context(self):
         A = Str("a")
@@ -223,12 +279,12 @@ class TestWorkchain(AiidaTestCase):
         class ReturnA(work.Process):
             def _run(self):
                 self.out('res', A)
-                return self.outputs
+                return
 
         class ReturnB(work.Process):
             def _run(self):
                 self.out('res', B)
-                return self.outputs
+                return
 
         class Wf(WorkChain):
             @classmethod
@@ -252,7 +308,7 @@ class TestWorkchain(AiidaTestCase):
                 assert self.ctx.r1['res'] == B
                 assert self.ctx.r2['res'] == B
 
-        work.launch.run(Wf)
+        run_and_check_success(Wf)
 
     def test_str(self):
         self.assertIsInstance(str(Wf.spec()), basestring)
@@ -325,42 +381,43 @@ class TestWorkchain(AiidaTestCase):
             def after(self):
                 raise RuntimeError("Shouldn't get here")
 
-        work.launch.run(WcWithReturn)
+        run_and_check_success(WcWithReturn)
 
     def test_tocontext_submit_workchain_no_daemon(self):
         class MainWorkChain(WorkChain):
             @classmethod
             def define(cls, spec):
                 super(MainWorkChain, cls).define(spec)
-                spec.outline(cls.run, cls.check)
+                spec.outline(cls.do_run, cls.check)
                 spec.outputs.dynamic = True
 
-            def run(self):
+            def do_run(self):
                 return ToContext(subwc=self.submit(SubWorkChain))
 
             def check(self):
+                pass
                 assert self.ctx.subwc.out.value == Int(5)
 
         class SubWorkChain(WorkChain):
             @classmethod
             def define(cls, spec):
                 super(SubWorkChain, cls).define(spec)
-                spec.outline(cls.run)
+                spec.outline(cls.do_run)
 
-            def run(self):
+            def do_run(self):
                 self.out("value", Int(5))
 
-        work.launch.run(MainWorkChain)
+        run_and_check_success(MainWorkChain)
 
     def test_tocontext_schedule_workchain(self):
         class MainWorkChain(WorkChain):
             @classmethod
             def define(cls, spec):
                 super(MainWorkChain, cls).define(spec)
-                spec.outline(cls.run, cls.check)
+                spec.outline(cls.do_run, cls.check)
                 spec.outputs.dynamic = True
 
-            def run(self):
+            def do_run(self):
                 return ToContext(subwc=self.submit(SubWorkChain))
 
             def check(self):
@@ -370,12 +427,12 @@ class TestWorkchain(AiidaTestCase):
             @classmethod
             def define(cls, spec):
                 super(SubWorkChain, cls).define(spec)
-                spec.outline(cls.run)
+                spec.outline(cls.do_run)
 
-            def run(self):
-                self.out("value", Int(5))
+            def do_run(self):
+                self.out('value', Int(5))
 
-        work.launch.run(MainWorkChain)
+        run_and_check_success(MainWorkChain)
 
     # @unittest.skip('This is currently broken after merge')
     def test_if_block_persistence(self):
@@ -424,7 +481,7 @@ class TestWorkchain(AiidaTestCase):
                 logs = self._backend.log.find()
                 assert len(logs) == 1
 
-        work.launch.run(TestWorkChain)
+        run_and_check_success(TestWorkChain)
 
     def test_to_context(self):
         val = Int(5)
@@ -432,7 +489,7 @@ class TestWorkchain(AiidaTestCase):
         class SimpleWc(work.Process):
             def _run(self):
                 self.out('_return', val)
-                return self.outputs
+                return
 
         class Workchain(WorkChain):
             @classmethod
@@ -449,7 +506,7 @@ class TestWorkchain(AiidaTestCase):
                 assert self.ctx.result_b['_return'] == val
                 return
 
-        work.launch.run(Workchain)
+        run_and_check_success(Workchain)
 
     def test_persisting(self):
         persister = plumpy.test_utils.TestPersister()
@@ -458,9 +515,10 @@ class TestWorkchain(AiidaTestCase):
         workchain.execute()
 
     def _run_with_checkpoints(self, wf_class, inputs=None):
-        proc = wf_class(inputs=inputs)
-        work.launch.run(proc)
-        return wf_class.finished_steps
+        if inputs is None:
+            inputs = {}
+        proc = run_and_check_success(wf_class, **inputs)
+        return proc.finished_steps
 
 
 class TestWorkchainWithOldWorkflows(AiidaTestCase):
@@ -494,7 +552,7 @@ class TestWorkchainWithOldWorkflows(AiidaTestCase):
             def check(self):
                 assert self.ctx.wf is not None
 
-        work.launch.run(_TestWf)
+        run_and_check_success(_TestWf)
 
     def test_old_wf_results(self):
         wf = WorkflowDemo()
@@ -514,7 +572,7 @@ class TestWorkchainWithOldWorkflows(AiidaTestCase):
             def check(self):
                 assert set(self.ctx.res) == set(wf.get_results())
 
-        work.launch.run(_TestWf)
+        run_and_check_success(_TestWf)
 
 
 class TestWorkChainAbort(AiidaTestCase):
@@ -552,7 +610,7 @@ class TestWorkChainAbort(AiidaTestCase):
     def test_simple_run(self):
         """
         Run the workchain which should hit the exception and therefore end
-        up in the FAILED state
+        up in the EXCEPTED state
         """
         process = TestWorkChainAbort.AbortableWorkChain()
 
@@ -560,43 +618,27 @@ class TestWorkChainAbort(AiidaTestCase):
             process.execute(True)
             process.execute()
 
-        self.assertEquals(process.calc.has_finished_ok(), False)
-        self.assertEquals(process.calc.has_failed(), True)
-        self.assertEquals(process.calc.has_aborted(), False)
+        self.assertEquals(process.calc.is_finished_ok, False)
+        self.assertEquals(process.calc.is_excepted, True)
+        self.assertEquals(process.calc.is_killed, False)
 
-    def test_simple_kill_through_node(self):
-        """
-        Run the workchain for one step and then kill it by calling kill
-        on the underlying WorkCalculation node. This should have the
-        workchain end up in the ABORTED state.
-        """
-        process = TestWorkChainAbort.AbortableWorkChain()
-
-        with self.assertRaises(plumpy.KilledError):
-            process.execute(True)
-            process.calc.kill()
-            process.execute()
-
-        self.assertEquals(process.calc.has_finished_ok(), False)
-        self.assertEquals(process.calc.has_failed(), False)
-        self.assertEquals(process.calc.has_aborted(), True)
-
+    @unittest.skip('Process kill needs to be fixed')
     def test_simple_kill_through_process(self):
         """
         Run the workchain for one step and then kill it by calling kill
         on the workchain itself. This should have the workchain end up
-        in the ABORTED state.
+        in the KILLED state.
         """
         process = TestWorkChainAbort.AbortableWorkChain()
 
         with self.assertRaises(plumpy.KilledError):
             process.execute(True)
-            process.abort()
+            process.kill()
             process.execute()
 
-        self.assertEquals(process.calc.has_finished_ok(), False)
-        self.assertEquals(process.calc.has_failed(), False)
-        self.assertEquals(process.calc.has_aborted(), True)
+        self.assertEquals(process.calc.is_finished_ok, False)
+        self.assertEquals(process.calc.is_excepted, False)
+        self.assertEquals(process.calc.is_killed, True)
 
 
 class TestWorkChainAbortChildren(AiidaTestCase):
@@ -646,16 +688,15 @@ class TestWorkChainAbortChildren(AiidaTestCase):
             self.ctx.child = TestWorkChainAbortChildren.SubWorkChain()
             self.ctx.child.start()
             if self.inputs.kill:
-                self.abort()
+                self.kill()
 
         def check(self):
             raise RuntimeError('should have been aborted by now')
 
-        def on_cancel(self, msg):
-            super(TestWorkChainAbortChildren.MainWorkChain, self).on_cancel(msg)
+        def on_kill(self, msg):
+            super(TestWorkChainAbortChildren.MainWorkChain, self).on_kill(msg)
             if self.inputs.kill:
-                assert self.ctx.child.calc.get_attr(self.calc.DO_ABORT_KEY, False), \
-                    "Abort key not set on child"
+                assert self.ctx.child.calc.is_killed == True, 'Child was not killed'
 
     def setUp(self):
         super(TestWorkChainAbortChildren, self).setUp()
@@ -672,22 +713,22 @@ class TestWorkChainAbortChildren(AiidaTestCase):
     def test_simple_run(self):
         """
         Run the workchain which should hit the exception and therefore end
-        up in the FAILED state
+        up in the EXCEPTED state
         """
         process = TestWorkChainAbortChildren.MainWorkChain()
 
         with self.assertRaises(RuntimeError):
             process.execute()
 
-        self.assertEquals(process.calc.has_finished_ok(), False)
-        self.assertEquals(process.calc.has_failed(), True)
-        self.assertEquals(process.calc.has_aborted(), False)
+        self.assertEquals(process.calc.is_finished_ok, False)
+        self.assertEquals(process.calc.is_excepted, True)
+        self.assertEquals(process.calc.is_killed, False)
 
-    def test_simple_kill_through_node(self):
+    @unittest.skip('This requires children kill support over RMQ #1060')
+    def test_simple_kill_through_process(self):
         """
-        Run the workchain for one step and then kill it by calling kill
-        on the underlying WorkCalculation node. This should have the
-        workchain end up in the CANCELLED state.
+        Run the workchain for one step and then kill it. This should have the
+        workchain and its children end up in the KILLED state.
         """
         process = TestWorkChainAbortChildren.MainWorkChain(inputs={'kill': Bool(True)})
 
@@ -698,13 +739,13 @@ class TestWorkChainAbortChildren(AiidaTestCase):
             process.ctx.child.execute()
 
         child = process.calc.get_outputs(link_type=LinkType.CALL)[0]
-        self.assertEquals(child.has_finished_ok(), False)
-        self.assertEquals(child.has_failed(), False)
-        self.assertEquals(child.has_aborted(), True)
+        self.assertEquals(child.is_finished_ok, False)
+        self.assertEquals(child.is_excepted, False)
+        self.assertEquals(child.is_killed, True)
 
-        self.assertEquals(process.calc.has_finished_ok(), False)
-        self.assertEquals(process.calc.has_failed(), False)
-        self.assertEquals(process.calc.has_aborted(), True)
+        self.assertEquals(process.calc.is_finished_ok, False)
+        self.assertEquals(process.calc.is_excepted, False)
+        self.assertEquals(process.calc.is_killed, True)
 
 
 class TestImmutableInputWorkchain(AiidaTestCase):
@@ -753,7 +794,7 @@ class TestImmutableInputWorkchain(AiidaTestCase):
                 test_class.assertNotIn('c', self.inputs)
                 test_class.assertEquals(self.inputs['a'].value, 1)
 
-        work.launch.run(Wf, a=Int(1), b=Int(2))
+        run_and_check_success(Wf, a=Int(1), b=Int(2))
 
     def test_immutable_input_groups(self):
         """
@@ -789,4 +830,176 @@ class TestImmutableInputWorkchain(AiidaTestCase):
 
         x = Int(1)
         y = Int(2)
-        work.launch.run(Wf, subspace={'one': Int(1), 'two': Int(2)})
+        run_and_check_success(Wf, subspace={'one': Int(1), 'two': Int(2)})
+
+class GrandParentExposeWorkChain(work.WorkChain):
+    @classmethod
+    def define(cls, spec):
+        super(GrandParentExposeWorkChain, cls).define(spec)
+
+        spec.expose_inputs(ParentExposeWorkChain, namespace='sub.sub')
+        spec.expose_outputs(ParentExposeWorkChain, namespace='sub.sub')
+
+        spec.outline(cls.do_run, cls.finalize)
+
+    def do_run(self):
+        return ToContext(child=self.submit(
+            ParentExposeWorkChain,
+            **self.exposed_inputs(ParentExposeWorkChain, namespace='sub.sub')
+        ))
+
+    def finalize(self):
+        self.out_many(
+            self.exposed_outputs(
+                self.ctx.child,
+                ParentExposeWorkChain,
+                namespace='sub.sub'
+            )
+        )
+
+class ParentExposeWorkChain(work.WorkChain):
+    @classmethod
+    def define(cls, spec):
+        super(ParentExposeWorkChain, cls).define(spec)
+
+        spec.expose_inputs(ChildExposeWorkChain, include=['a'])
+        spec.expose_inputs(
+            ChildExposeWorkChain,
+            exclude=['a'],
+            namespace='sub_1',
+        )
+        spec.expose_inputs(
+            ChildExposeWorkChain,
+            include=['b'],
+            namespace='sub_2',
+        )
+        spec.expose_inputs(
+            ChildExposeWorkChain,
+            include=['c'],
+            namespace='sub_2.sub_3',
+        )
+
+        spec.expose_outputs(ChildExposeWorkChain, include=['a'])
+        spec.expose_outputs(
+            ChildExposeWorkChain,
+            exclude=['a'],
+            namespace='sub_1'
+        )
+        spec.expose_outputs(
+            ChildExposeWorkChain,
+            include=['b'],
+            namespace='sub_2'
+        )
+        spec.expose_outputs(
+            ChildExposeWorkChain,
+            include=['c'],
+            namespace='sub_2.sub_3'
+        )
+
+        spec.outline(
+            cls.start_children,
+            cls.finalize
+        )
+
+    def start_children(self):
+        child_1 = self.submit(
+            ChildExposeWorkChain,
+            a=self.exposed_inputs(ChildExposeWorkChain)['a'],
+            **self.exposed_inputs(ChildExposeWorkChain, namespace='sub_1', agglomerate=False)
+        )
+        child_2 = self.submit(
+            ChildExposeWorkChain,
+            **self.exposed_inputs(
+                ChildExposeWorkChain,
+                namespace='sub_2.sub_3',
+            )
+        )
+        return ToContext(child_1=child_1, child_2=child_2)
+
+    def finalize(self):
+        exposed_1 = self.exposed_outputs(
+            self.ctx.child_1,
+            ChildExposeWorkChain,
+            namespace='sub_1',
+            agglomerate=False
+        )
+        self.out_many(exposed_1)
+        exposed_2 = self.exposed_outputs(
+            self.ctx.child_2,
+            ChildExposeWorkChain,
+            namespace='sub_2.sub_3'
+        )
+        self.out_many(exposed_2)
+
+class ChildExposeWorkChain(work.WorkChain):
+    @classmethod
+    def define(cls, spec):
+        super(ChildExposeWorkChain, cls).define(spec)
+
+        spec.input('a', valid_type=Int)
+        spec.input('b', valid_type=Float)
+        spec.input('c', valid_type=Bool)
+
+        spec.output('a', valid_type=Float)
+        spec.output('b', valid_type=Float)
+        spec.output('c', valid_type=Bool)
+
+        spec.outline(cls.do_run)
+
+    def do_run(self):
+        self.out('a', self.inputs.a + self.inputs.b)
+        self.out('b', self.inputs.b)
+        self.out('c', self.inputs.c)
+
+class TestWorkChainExpose(AiidaTestCase):
+    """
+    Test the expose inputs / outputs functionality
+    """
+
+    def setUp(self):
+        super(TestWorkChainExpose, self).setUp()
+        self.assertEquals(len(ProcessStack.stack()), 0)
+        self.runner = utils.create_test_runner()
+
+    def tearDown(self):
+        super(TestWorkChainExpose, self).tearDown()
+        work.set_runner(None)
+        self.runner.close()
+        self.runner = None
+        self.assertEquals(len(ProcessStack.stack()), 0)
+
+    def test_expose(self):
+        res = work.launch.run(
+            ParentExposeWorkChain,
+            a=Int(1),
+            sub_1={'b': Float(2.3), 'c': Bool(True)},
+            sub_2={'b': Float(1.2), 'sub_3': {'c': Bool(False)}},
+        )
+        self.assertEquals(
+            res,
+            {
+                'a': Float(2.2),
+                'sub_1.b': Float(2.3), 'sub_1.c': Bool(True),
+                'sub_2.b': Float(1.2), 'sub_2.sub_3.c': Bool(False)
+            }
+        )
+
+    def test_nested_expose(self):
+        res = work.launch.run(
+            GrandParentExposeWorkChain,
+            sub=dict(
+                sub=dict(
+                    a=Int(1),
+                    sub_1={'b': Float(2.3), 'c': Bool(True)},
+                    sub_2={'b': Float(1.2), 'sub_3': {'c': Bool(False)}},
+                )
+            )
+        )
+        self.assertEquals(
+            res,
+            {
+                'sub.sub.a': Float(2.2),
+                'sub.sub.sub_1.b': Float(2.3), 'sub.sub.sub_1.c': Bool(True),
+                'sub.sub.sub_2.b': Float(1.2), 'sub.sub.sub_2.sub_3.c': Bool(False)
+            }
+        )

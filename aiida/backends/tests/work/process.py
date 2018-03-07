@@ -14,7 +14,7 @@ from aiida import work
 from aiida.backends.testbase import AiidaTestCase
 from aiida.common.lang import override
 from aiida.orm import load_node
-from aiida.orm.data.base import Int
+from aiida.orm.data.int import Int
 from aiida.orm.data.frozendict import FrozenDict
 from aiida.work import utils
 from aiida.work import test_utils
@@ -136,9 +136,9 @@ class TestProcess(AiidaTestCase):
 
     def test_work_calc_finish(self):
         p = test_utils.DummyProcess()
-        self.assertFalse(p.calc.has_finished_ok())
+        self.assertFalse(p.calc.is_finished_ok)
         work.launch.run(p)
-        self.assertTrue(p.calc.has_finished_ok())
+        self.assertTrue(p.calc.is_finished_ok)
 
     def test_calculation_input(self):
         @work.workfunction

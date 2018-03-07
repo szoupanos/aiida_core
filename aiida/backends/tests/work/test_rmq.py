@@ -4,16 +4,10 @@ import plumpy
 import uuid
 
 from aiida.backends.testbase import AiidaTestCase
-import aiida.work.test_utils as test_utils
-from aiida.orm.data import base
-import aiida.work as work
-from aiida.orm.calculation.work import WorkCalculation
-
-__copyright__ = u"Copyright (c), This file is part of the AiiDA platform. For further information please visit http://www.aiida.net/. All rights reserved."
-__license__ = "MIT license, see LICENSE.txt file."
-__authors__ = "The AiiDA team."
-__version__ = "0.7.0"
-
+from aiida.orm.calculation import Calculation
+from aiida.orm.data.int import Int
+from aiida.work import runners
+from aiida.work import test_utils
 
 class TestProcessControl(AiidaTestCase):
     """
@@ -31,10 +25,16 @@ class TestProcessControl(AiidaTestCase):
             'prefix': prefix,
             'testing_mode': True
         }
-        self.runner = work.Runner(
-            rmq_config=rmq_config, rmq_submit=True, loop=self.loop, poll_interval=0.)
-        self.daemon_runner = work.DaemonRunner(
-            rmq_config=rmq_config, rmq_submit=True, loop=self.loop, poll_interval=0.)
+        self.runner = runners.Runner(
+            rmq_config=rmq_config,
+            rmq_submit=True,
+            loop=self.loop,
+            poll_interval=0.)
+        self.daemon_runner = runners.DaemonRunner(
+            rmq_config=rmq_config,
+            rmq_submit=True,
+            loop=self.loop,
+            poll_interval=0.)
 
     def tearDown(self):
         self.daemon_runner.close()
@@ -45,37 +45,28 @@ class TestProcessControl(AiidaTestCase):
         calc_node = self.runner.submit(test_utils.DummyProcess)
         self._wait_for_calc(calc_node)
 
-        self.assertTrue(calc_node.has_finished_ok())
-        self.assertEqual(
-            calc_node.get_attr(WorkCalculation.PROCESS_STATE_KEY),
-            work.ProcessState.FINISHED.value
-        )
+        self.assertTrue(calc_node.is_finished_ok)
+        self.assertEqual(calc_node.process_state.value, plumpy.ProcessState.FINISHED.value)
 
     def test_launch_with_inputs(self):
-        a = base.Int(5)
-        b = base.Int(10)
+        a = Int(5)
+        b = Int(10)
 
         calc_node = self.runner.submit(test_utils.AddProcess, a=a, b=b)
         self._wait_for_calc(calc_node)
-        self.assertTrue(calc_node.has_finished_ok())
-        self.assertEqual(
-            calc_node.get_attr(WorkCalculation.PROCESS_STATE_KEY),
-            work.ProcessState.FINISHED.value
-        )
+        self.assertTrue(calc_node.is_finished_ok)
+        self.assertEqual(calc_node.process_state.value, plumpy.ProcessState.FINISHED.value)
 
     def test_submit_bad_input(self):
         with self.assertRaises(ValueError):
-            self.runner.submit(test_utils.AddProcess, a=base.Int(5))
+            self.runner.submit(test_utils.AddProcess, a=Int(5))
 
     def test_exception_process(self):
         calc_node = self.runner.submit(test_utils.ExceptionProcess)
         self._wait_for_calc(calc_node)
 
-        self.assertFalse(calc_node.has_finished_ok())
-        self.assertEqual(
-            calc_node.get_attr(WorkCalculation.PROCESS_STATE_KEY),
-            work.ProcessState.EXCEPTED.value
-        )
+        self.assertFalse(calc_node.is_finished_ok)
+        self.assertEqual(calc_node.process_state.value, plumpy.ProcessState.EXCEPTED.value)
 
     def test_pause(self):
         """ Testing sending a pause message to the process """

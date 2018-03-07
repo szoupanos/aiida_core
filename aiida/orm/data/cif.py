@@ -93,7 +93,7 @@ def symop_string_from_symop_matrix_tr(matrix, tr=(0, 0, 0), eps=0):
 
 
 @optional_inline
-def _get_aiida_structure_ase_inline(cif=None, parameters=None):
+def _get_aiida_structure_ase_inline(cif, parameters):
     """
     Creates :py:class:`aiida.orm.data.structure.StructureData` using ASE.
 
@@ -522,7 +522,9 @@ class CifData(SinglefileData):
         """
         Store the node.
         """
-        self._set_attr('md5', self.generate_md5())
+        if not self.is_stored:
+            self._set_attr('md5', self.generate_md5())
+
         return super(CifData, self).store(*args, **kwargs)
 
     def set_file(self, filename):

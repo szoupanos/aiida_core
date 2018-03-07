@@ -9,7 +9,7 @@
 ###########################################################################
 
 
-LATEST_MIGRATION = '0007_update_linktypes'
+LATEST_MIGRATION = '0009_base_data_plugin_type_string'
 
 
 def _update_schema_version(version, apps, schema_editor):

@@ -11,6 +11,7 @@ import functools
 import plumpy
 import plumpy.workchains
 
+from plumpy.workchains import if_, while_, return_, _PropagateReturn
 from aiida.common.extendeddicts import AttributeDict
 from aiida.orm.utils import load_node, load_workflow
 from aiida.common.lang import override
@@ -22,7 +23,6 @@ from .context import *
 
 __all__ = ['WorkChain', 'if_', 'while_', 'return_', 'ToContext', 'Outputs', '_WorkChainSpec']
 
-from plumpy.workchains import if_, while_, return_, _PropagateReturn
 
 
 class _WorkChainSpec(processes.ProcessSpec, plumpy.WorkChainSpec):
@@ -79,6 +79,10 @@ class WorkChain(processes.Process):
 
         self.set_logger(self._calc.logger)
 
+    def on_run(self):
+        super(WorkChain, self).on_run()
+        self.calc._set_stepper_state_info(str(self._stepper))
+
     def insert_awaitable(self, awaitable):
         """
         Insert a awaitable that will cause the workchain to wait until the wait
@@ -115,51 +119,30 @@ class WorkChain(processes.Process):
         self._stepper = self.spec().get_outline().create_stepper(self)
         return self._do_step()
 
-    @property
-    def _do_abort(self):
-        return self.calc.get_attr(self.calc.DO_ABORT_KEY, False)
-
-    @property
-    def _aborted(self):
-        return self.calc.get_attr(self.calc.ABORTED_KEY, False)
-
-    @_aborted.setter
-    def _aborted(self, value):
-        # One is not allowed to unabort an aborted WorkChain
-        if self._aborted and value == False:
-            self.logger.warning('trying to unset the abort flag on an already aborted workchain which is not allowed')
-            return
-
-        self.calc._set_attr(self.calc.ABORTED_KEY, value)
-
     def _do_step(self, wait_on=None):
+        """
+        Execute the next step in the outline, if the stepper returns a non-finished status
+        and the return value is of type ToContext, it will be added to the awaitables.
+        If the stepper returns that the process is finished, we return the return value
+        """
         self._awaitables = []
 
-        if self._handle_do_abort():
-            return
-
         try:
-            finished, retval = self._stepper.step()
-        except _PropagateReturn:
-            finished, retval = True, None
+            finished, return_value = self._stepper.step()
+        except _PropagateReturn as exception:
+            finished, return_value = True, exception.exit_code
 
-        # Could have aborted during the step
-        if self._handle_do_abort():
-            return
+        if not finished and (return_value is None or isinstance(return_value, ToContext)):
 
-        if not finished:
-            if retval is not None:
-                if isinstance(retval, ToContext):
-                    self.to_context(**retval)
-                else:
-                    raise TypeError("Invalid value returned from step '{}'".format(retval))
+            if isinstance(return_value, ToContext):
+                self.to_context(**return_value)
 
             if self._awaitables:
                 return plumpy.Wait(self._do_step, 'Waiting before next step')
             else:
                 return plumpy.Continue(self._do_step)
         else:
-            return self.outputs
+            return return_value
 
     def on_wait(self, awaitables):
         super(WorkChain, self).on_wait(awaitables)
@@ -167,36 +150,6 @@ class WorkChain(processes.Process):
             self.action_awaitables()
         else:
             self.call_soon(self.resume)
-
-    def abort(self, message=None):
-        """
-        Cancel is the new abort, just like orange is the new black
-        """
-        self.calc.kill()
-        self.report(message)
-        self.kill(message)
-
-    def _handle_do_abort(self):
-        """
-        Check whether a request to abort has been registered, by checking whether the DO_ABORT_KEY
-        attribute has been set, and if so call self.abort and remove the DO_ABORT_KEY attribute 
-        """
-        do_abort = self._do_abort
-        if do_abort:
-            self.kill(do_abort)
-            self.calc._del_attr(self.calc.DO_ABORT_KEY)
-            return True
-        return False
-
-    def abort_nowait(self, message=None):
-        """
-        Abort the workchain at the next state transition without waiting
-        which is achieved by passing a timeout value of zero
-
-        :param message: The abort message
-        :type message: str
-        """
-        return self.abort(message=message)
 
     def action_awaitables(self):
         """
