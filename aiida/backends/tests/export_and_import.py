@@ -14,8 +14,8 @@ Tests for the export and import routines.
 from aiida.backends.testbase import AiidaTestCase
 from aiida.orm.importexport import import_data
 
-class TestSpecificImport(AiidaTestCase):
-# class TestSpecificImport():
+# class TestSpecificImport(AiidaTestCase):
+class TestSpecificImport():
 
     def test_simple_import(self):
         """
@@ -187,8 +187,8 @@ class TestSpecificImport(AiidaTestCase):
         self.assertGreater(len(qb.all()), 0, "There should be results for the"
                                              "query.")
 
-class TestSimple(AiidaTestCase):
-# class TestSimple():
+# class TestSimple(AiidaTestCase):
+class TestSimple():
 
     def setUp(self):
         self.clean_db()
@@ -1673,7 +1673,7 @@ class TestLinks(AiidaTestCase):
         finally:
             shutil.rmtree(tmp_folder, ignore_errors=True)
 
-    @unittest.skip("")
+    # @unittest.skip("")
     def test_complex_workflow_graph_export_set_expansion(self):
         import os, shutil, tempfile
         from aiida.orm.importexport import export
@@ -1757,7 +1757,7 @@ class TestLinks(AiidaTestCase):
             no1 = Int(1).store()
             no2 = Int(2).store()
 
-            # Create the connections between workcalculations and calcluations
+            # Create the connections between workcalculations and calculations
             wc1.add_link_from(wc2, 'call', link_type=LinkType.CALL)
             c1.add_link_from(wc1, 'call', link_type=LinkType.CALL)
 
