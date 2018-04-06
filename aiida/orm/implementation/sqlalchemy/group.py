@@ -139,6 +139,7 @@ class Group(AbstractGroup):
         from aiida.orm.implementation.sqlalchemy.node import Node
         from aiida.backends.sqlalchemy import get_scoped_session
         session = get_scoped_session()
+        session.expunge_all()
 
         # First convert to a list
         if isinstance(nodes, (Node, DbNode)):
@@ -152,6 +153,8 @@ class Group(AbstractGroup):
                 str(type(nodes))))
 
         list_nodes = []
+        dict_nodes = dict()
+        session.add(self._dbgroup)
         for node in nodes:
             if not isinstance(node, (Node, DbNode)):
                 raise TypeError("Invalid type of one of the elements passed "
@@ -167,10 +170,23 @@ class Group(AbstractGroup):
             else:
                 to_add = node
 
-            if to_add not in self._dbgroup.dbnodes:
-                # ~ list_nodes.append(to_add)
-                self._dbgroup.dbnodes.append(to_add)
+            list_nodes.append(to_add)
+            dict_nodes[to_add.id] = to_add
+
+
+        not_needed_ids = session.query(DbNode.id).filter(
+            DbGroup.name == self._dbgroup.name).join(
+            DbGroup.dbnodes).filter(DbNode.id.in_(dict_nodes.keys())).all()
+
+        for id, in not_needed_ids:
+            dict_nodes.pop(id)
+
+        for node in dict_nodes.values():
+            self._dbgroup.dbnodes.append(node)
+            session.add(node)
+
         session.commit()
+        # session.expunge_all()
         # ~ self._dbgroup.dbnodes.extend(list_nodes)
 
     @property
