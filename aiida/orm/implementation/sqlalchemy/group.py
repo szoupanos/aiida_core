@@ -65,6 +65,7 @@ class Group(AbstractGroup):
 
             self._dbgroup = DbGroup(name=name, description=description,
                                     user=user, type=group_type)
+            print "====> Creating dbgroup", self._dbgroup, id(self._dbgroup)
 
     @staticmethod
     def get_db_columns():
@@ -100,6 +101,10 @@ class Group(AbstractGroup):
 
     @property
     def pk(self):
+        from aiida.backends.sqlalchemy import get_scoped_session
+        session = get_scoped_session()
+        if self._dbgroup not in session:
+            session.merge(self._dbgroup)
         return self._dbgroup.id
 
     @property
@@ -122,6 +127,11 @@ class Group(AbstractGroup):
 
     def store(self):
         if not self.is_stored:
+            from aiida.backends.sqlalchemy import get_scoped_session
+            sess = get_scoped_session()
+            for obj in sess:
+                print "4 EEEEEE", obj, id(obj)
+
             try:
                 self._dbgroup.save(commit=True)
             except SQLAlchemyError as ex:
@@ -139,7 +149,7 @@ class Group(AbstractGroup):
         from aiida.orm.implementation.sqlalchemy.node import Node
         from aiida.backends.sqlalchemy import get_scoped_session
         session = get_scoped_session()
-        session.expunge_all()
+        # session.expunge_all()
 
         # First convert to a list
         if isinstance(nodes, (Node, DbNode)):
@@ -186,8 +196,7 @@ class Group(AbstractGroup):
             session.add(node)
 
         session.commit()
-        # session.expunge_all()
-        # ~ self._dbgroup.dbnodes.extend(list_nodes)
+        session.expunge_all()
 
     @property
     def nodes(self):
@@ -261,6 +270,10 @@ class Group(AbstractGroup):
         from aiida.orm.implementation.sqlalchemy.node import Node
 
         session = sa.get_scoped_session()
+        print "<============ Printing session "
+        for _ in session:
+            print _
+        print "============>"
 
         filters = []
 
@@ -325,10 +338,25 @@ class Group(AbstractGroup):
         session = sa.get_scoped_session()
 
         if self.pk is not None:
+            from aiida.orm.querybuilder import QueryBuilder
+            from aiida.orm.group import Group
+
+            qb = QueryBuilder()
+            qb.append(Group)
+            print "a WWWWW1 ====>", qb.count()
+            print "a WWWWW2 ====>", qb.all()
+
             session.delete(self._dbgroup)
+            session.flush()
             session.commit()
 
-            new_group = copy(self._dbgroup)
-            make_transient(new_group)
-            new_group.id = None
-            self._dbgroup = new_group
+            qb = QueryBuilder()
+            qb.append(Group)
+            print "b WWWWW1 ====>", qb.count()
+            print "b WWWWW2 ====>", qb.all()
+
+
+            # new_group = copy(self._dbgroup)
+            # make_transient(new_group)
+            # new_group.id = None
+            # self._dbgroup = new_group

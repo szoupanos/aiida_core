@@ -71,14 +71,27 @@ class Model(object):
 
     def save(self, commit=True):
         sess = get_scoped_session()
+
+        for obj in sess:
+            print "1 EEEEEE", obj, id(obj)
+
         sess.add(self)
+
+        for obj in sess:
+            print "2 EEEEEE", obj, id(obj)
+
         if commit:
+            sess.flush()
             sess.commit()
+            sess.expunge(self)
         return self
 
     def delete(self, commit=True):
         sess = get_scoped_session()
         sess.delete(self)
         if commit:
+            sess.flush()
             sess.commit()
+            sess.expunge(self)
+
 Base = declarative_base(cls=Model, name='Model')

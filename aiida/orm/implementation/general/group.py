@@ -157,6 +157,19 @@ class AbstractGroup(object):
         res = cls.query(name=kwargs.get("name"),
                         type_string=kwargs.get("type_string"))
 
+        from aiida.orm.querybuilder import QueryBuilder
+        from aiida.orm.group import Group
+
+        qb = QueryBuilder()
+        qb.append(Group)
+        print "WWWWW1 ====>", qb.count()
+        print "WWWWW2 ====>", qb.all()
+
+        from aiida.backends.sqlalchemy import get_scoped_session
+        sess = get_scoped_session()
+        for obj in sess:
+            print "3 EEEEEE", obj, id(obj)
+
         if res is None or len(res) == 0:
             return cls.create(*args, **kwargs), True
         elif len(res) > 1:
