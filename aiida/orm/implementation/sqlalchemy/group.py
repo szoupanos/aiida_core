@@ -132,15 +132,15 @@ class Group(AbstractGroup):
 
         return self
 
-    def add_nodes(self, nodes):
+    def add_nodes(self, nodes, skip_orm=False):
         if not self.is_stored:
             raise ModificationNotAllowed("Cannot add nodes to a group before "
                                          "storing")
         from aiida.orm.implementation.sqlalchemy.node import Node
         from aiida.backends.sqlalchemy import get_scoped_session
+
         session = get_scoped_session()
 
-        # First convert to a list
         if isinstance(nodes, (Node, DbNode)):
             nodes = [nodes]
 
@@ -151,7 +151,9 @@ class Group(AbstractGroup):
                             "of such objects, it is instead {}".format(
                 str(type(nodes))))
 
-        list_nodes = []
+        list_dbnodes = []
+        list_dbnodes_ids = []
+
         for node in nodes:
             if not isinstance(node, (Node, DbNode)):
                 raise TypeError("Invalid type of one of the elements passed "
@@ -159,19 +161,34 @@ class Group(AbstractGroup):
                                 "a DbNode, it is instead {}".format(
                     str(type(node))))
 
-            if node.id is None:
-                raise ValueError("At least one of the provided nodes is "
-                                 "unstored, stopping...")
-            if isinstance(node, Node):
-                to_add = node.dbnode
+            if skip_orm:
+                list_dbnodes_ids.append(node.id)
             else:
-                to_add = node
+                if node.id is None:
+                    raise ValueError("At least one of the provided nodes is "
+                                     "unstored, stopping...")
+                if isinstance(node, Node):
+                    to_add = node.dbnode
+                else:
+                    to_add = node
 
-            if to_add not in self._dbgroup.dbnodes:
-                # ~ list_nodes.append(to_add)
+                if to_add not in self._dbgroup.dbnodes:
+                    list_dbnodes.append(to_add)
+
+        if skip_orm:
+            insert_txt = ""
+            for nid in list_dbnodes_ids:
+                insert_txt += "({}, {}), ".format(nid, self._dbgroup.id)
+            insert_txt = insert_txt[:-2]
+
+            statement = """INSERT INTO db_dbgroup_dbnodes(dbnode_id, dbgroup_id)
+    VALUES {} ON CONFLICT DO NOTHING;""".format(insert_txt)
+            session.execute(statement)
+            session.add(self._dbgroup)
+        else:
+            for to_add in list_dbnodes:
                 self._dbgroup.dbnodes.append(to_add)
-        session.commit()
-        # ~ self._dbgroup.dbnodes.extend(list_nodes)
+            session.commit()
 
     @property
     def nodes(self):

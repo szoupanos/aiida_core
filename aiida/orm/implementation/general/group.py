@@ -189,7 +189,7 @@ class AbstractGroup(object):
         pass
 
     @abstractmethod
-    def add_nodes(self, nodes):
+    def add_nodes(self, nodes, **kwargs):
         """
         Add a node or a set of nodes to the group.
 
