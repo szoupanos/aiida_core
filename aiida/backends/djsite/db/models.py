@@ -21,6 +21,7 @@ from django.contrib.auth.models import (
 from django.utils.encoding import python_2_unicode_compatible
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.query import QuerySet
+from django.contrib.postgres.fields import JSONField
 
 from aiida.utils import timezone
 from aiida.common.utils import get_new_uuid
@@ -165,6 +166,11 @@ class DbNode(m.Model):
     # For the API: whether this node
     public = m.BooleanField(default=False)
 
+    # JSON Attributes
+    attributes = JSONField(default=None)
+    # JSON Extras
+    extras = JSONField(default=None)
+
     objects = m.Manager()
     # Return aiida Node instances or their subclasses instead of DbNode instances
     aiidaobjects = AiidaObjectManager()
@@ -209,19 +215,19 @@ class DbNode(m.Model):
             thistype = thistype[:-1]  # Strip final dot
             return thistype.rpartition('.')[2]
 
-    @property
-    def attributes(self):
-        """
-        Return all attributes of the given node as a single dictionary.
-        """
-        return DbAttribute.get_all_values_for_node(self)
-
-    @property
-    def extras(self):
-        """
-        Return all extras of the given node as a single dictionary.
-        """
-        return DbExtra.get_all_values_for_node(self)
+    # @property
+    # def attributes(self):
+    #     """
+    #     Return all attributes of the given node as a single dictionary.
+    #     """
+    #     return DbAttribute.get_all_values_for_node(self)
+    #
+    # @property
+    # def extras(self):
+    #     """
+    #     Return all extras of the given node as a single dictionary.
+    #     """
+    #     return DbExtra.get_all_values_for_node(self)
 
     def __str__(self):
         simplename = self.get_simple_name(invalid_result="Unknown")
