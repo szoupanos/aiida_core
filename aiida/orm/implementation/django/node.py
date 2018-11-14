@@ -330,69 +330,61 @@ class Node(AbstractNode):
         :param str key: key name
         :param value: its value
         """
-        from aiida.backends.djsite.db.models import DbAttribute
-
-        DbAttribute.set_value_for_node(self._dbnode, key, value)
+        self._dbnode.set_attr(key, value)
         self._increment_version_number_db()
 
     def _del_db_attr(self, key):
-        from aiida.backends.djsite.db.models import DbAttribute
-        if not DbAttribute.has_key(self._dbnode, key):
-            raise AttributeError("DbAttribute {} does not exist".format(
-                key))
-        DbAttribute.del_value_for_node(self._dbnode, key)
+        self._dbnode.del_attr(key)
         self._increment_version_number_db()
 
     def _get_db_attr(self, key):
-        from aiida.backends.djsite.db.models import DbAttribute
-        return DbAttribute.get_value_for_node(
-            dbnode=self._dbnode, key=key)
+        from aiida.orm.implementation.sqlalchemy.utils import get_attr
+        try:
+            return get_attr(self._attributes(), key)
+        except (KeyError, IndexError):
+            raise AttributeError("Attribute '{}' does not exist".format(key))
+
 
     def _set_db_extra(self, key, value, exclusive=False):
-        from aiida.backends.djsite.db.models import DbExtra
+        if exclusive:
+            raise NotImplementedError("exclusive=True not implemented yet in Django backend")
 
-        DbExtra.set_value_for_node(self._dbnode, key, value,
-                                   stop_if_existing=exclusive)
+        self._dbnode.set_extra(key, value)
         self._increment_version_number_db()
 
     def _reset_db_extras(self, new_extras):
-        raise NotImplementedError("Reset of extras has not been implemented"
-                                  "for Django backend.")
+        self._dbnode.reset_extras(new_extras)
+        self._increment_version_number_db()
 
     def _get_db_extra(self, key):
-        from aiida.backends.djsite.db.models import DbExtra
-        return DbExtra.get_value_for_node(dbnode=self._dbnode, key=key)
+        from aiida.orm.implementation.sqlalchemy.utils import get_attr
+        try:
+            return get_attr(self._extras(), key)
+        except (KeyError, AttributeError):
+            raise AttributeError("DbExtra {} does not exist".format(key))
 
     def _del_db_extra(self, key):
-        from aiida.backends.djsite.db.models import DbExtra
-        if not DbExtra.has_key(self._dbnode, key):
-            raise AttributeError("DbExtra {} does not exist".format(
-                key))
-        return DbExtra.del_value_for_node(self._dbnode, key)
+        self._dbnode.del_extra(key)
         self._increment_version_number_db()
 
     def _db_iterextras(self):
-        from aiida.backends.djsite.db.models import DbExtra
-        extraslist = DbExtra.list_all_node_elements(self._dbnode)
-        for e in extraslist:
-            yield (e.key, e.getvalue())
+        extras = self._extras()
+        if extras is None:
+            return iter(dict().items())
+
+        return iter(extras.items())
 
     def _db_iterattrs(self):
-        from aiida.backends.djsite.db.models import DbAttribute
-
-        all_attrs = DbAttribute.get_all_values_for_node(self._dbnode)
-        for attr in all_attrs:
-            yield (attr, all_attrs[attr])
+        for key, val in self._attributes().items():
+            yield (key, val)
 
     def _db_attrs(self):
         # Note: I "duplicate" the code from iterattrs and reimplement it
         # here, rather than
         # calling iterattrs from here, because iterattrs is slow on each call
         # since it has to call .getvalue(). To improve!
-        from aiida.backends.djsite.db.models import DbAttribute
-        attrlist = DbAttribute.list_all_node_elements(self._dbnode)
-        for attr in attrlist:
-            yield attr.key
+        for key in self._attributes().keys():
+            yield key
 
     def add_comment(self, content, user=None):
         from aiida.backends.djsite.db.models import DbComment
@@ -618,9 +610,6 @@ class Node(AbstractNode):
         # for storing data and its attributes.
         from django.db import transaction
         from aiida.common.utils import EmptyContextManager
-        from aiida.common.exceptions import ValidationError
-        from aiida.backends.djsite.db.models import DbAttribute
-        import aiida.orm.autogroup
 
         if with_transaction:
             context_man = transaction.atomic()
@@ -641,13 +630,11 @@ class Node(AbstractNode):
         # problems, especially with SQLite
         try:
             with context_man:
+                self._dbnode.attributes = self._attrs_cache
+
                 # Save the row
                 self._dbnode.save()
-                # Save its attributes 'manually' without incrementing
-                # the version for each add.
-                DbAttribute.reset_values_for_node(self._dbnode,
-                                                  attributes=self._attrs_cache,
-                                                  with_transaction=False)
+
                 # This should not be used anymore: I delete it to
                 # possibly free memory
                 del self._attrs_cache
@@ -668,8 +655,17 @@ class Node(AbstractNode):
                 self._repository_folder.abspath, move=True, overwrite=True)
             raise
 
-        from aiida.backends.djsite.db.models import DbExtra
-        # I store the hash without cleaning and without incrementing the nodeversion number
-        DbExtra.set_value_for_node(self._dbnode, _HASH_EXTRA_KEY, self.get_hash())
+        self._dbnode.set_extra(_HASH_EXTRA_KEY, self.get_hash())
 
         return self
+
+    def _attributes(self):
+        self._ensure_model_uptodate(['attributes'])
+        return self._dbnode.attributes
+
+    def _extras(self):
+        self._ensure_model_uptodate(['extras'])
+        return self._dbnode.extras
+
+    def _ensure_model_uptodate(self, attribute_names=None):
+        pass

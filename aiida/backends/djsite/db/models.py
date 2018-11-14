@@ -167,21 +167,28 @@ class DbNode(m.Model):
     public = m.BooleanField(default=False)
 
     # JSON Attributes
-    attributes = JSONField(default=None)
+    attributes = JSONField(default=None, null=True)
     # JSON Extras
-    extras = JSONField(default=None)
+    extras = JSONField(default=None, null=True)
 
     objects = m.Manager()
     # Return aiida Node instances or their subclasses instead of DbNode instances
     aiidaobjects = AiidaObjectManager()
+
+    def __init__(self, *args, **kwargs):
+        super(DbNode, self).__init__(*args, **kwargs)
+
+        if self.attributes is None:
+            self.attributes = dict()
+
+        if self.extras is None:
+            self.extras = dict()
 
     def get_aiida_class(self):
         """
         Return the corresponding aiida instance of class aiida.orm.Node or a
         appropriate subclass.
         """
-        from aiida.common import aiidalogger
-        from aiida.orm.node import Node
         from aiida.plugins.loader import get_plugin_type_from_type_string, load_plugin
 
         try:
@@ -236,6 +243,44 @@ class DbNode(m.Model):
             return "{} node [{}]: {}".format(simplename, self.pk, self.label)
         else:
             return "{} node [{}]".format(simplename, self.pk)
+
+    def set_attr(self, key, value):
+        DbNode._set_attr(self.attributes, key, value)
+        self.save()
+
+    def set_extra(self, key, value):
+        DbNode._set_attr(self.extras, key, value)
+        self.save()
+
+    def reset_extras(self, new_extras):
+        self.extras.clear()
+        self.extras.update(new_extras)
+        self.save()
+
+    def del_attr(self, key):
+        DbNode._del_attr(self.attributes, key)
+        self.save()
+
+    def del_extra(self, key):
+        DbNode._del_attr(self.extras, key)
+        self.save()
+
+    @staticmethod
+    def _set_attr(d, key, value):
+        if '.' in key:
+            raise ValueError("We don't know how to treat key with dot in it yet")
+
+        d[key] = value
+
+    @staticmethod
+    def _del_attr(d, key):
+        if '.' in key:
+            raise ValueError("We don't know how to treat key with dot in it yet")
+
+        if key not in d:
+            raise AttributeError("Key {} does not exists".format(key))
+
+        del d[key]
 
 
 @python_2_unicode_compatible
