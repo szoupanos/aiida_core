@@ -102,30 +102,30 @@ class DbCalcState(Base):
     )
 
 
-class DbAttribute(Base):
-    __tablename__ = "db_dbattribute"
-    id = Column(Integer, primary_key=True)
-    dbnode_id = Column(Integer, ForeignKey('db_dbnode.id'))
-    key = Column(String(255))
-    datatype = Column(String(10))
-    tval = Column(String, default='')
-    fval = Column(Float, default=None, nullable=True)
-    ival = Column(Integer, default=None, nullable=True)
-    bval = Column(Boolean, default=None, nullable=True)
-    dval = Column(DateTime, default=None, nullable=True)
-
-
-class DbExtra(Base):
-    __tablename__ = "db_dbextra"
-    id = Column(Integer, primary_key=True)
-    dbnode_id = Column(Integer, ForeignKey('db_dbnode.id'))
-    key = Column(String(255))
-    datatype = Column(String(10))
-    tval = Column(String, default='')
-    fval = Column(Float, default=None, nullable=True)
-    ival = Column(Integer, default=None, nullable=True)
-    bval = Column(Boolean, default=None, nullable=True)
-    dval = Column(DateTime, default=None, nullable=True)
+# class DbAttribute(Base):
+#     __tablename__ = "db_dbattribute"
+#     id = Column(Integer, primary_key=True)
+#     dbnode_id = Column(Integer, ForeignKey('db_dbnode.id'))
+#     key = Column(String(255))
+#     datatype = Column(String(10))
+#     tval = Column(String, default='')
+#     fval = Column(Float, default=None, nullable=True)
+#     ival = Column(Integer, default=None, nullable=True)
+#     bval = Column(Boolean, default=None, nullable=True)
+#     dval = Column(DateTime, default=None, nullable=True)
+#
+#
+# class DbExtra(Base):
+#     __tablename__ = "db_dbextra"
+#     id = Column(Integer, primary_key=True)
+#     dbnode_id = Column(Integer, ForeignKey('db_dbnode.id'))
+#     key = Column(String(255))
+#     datatype = Column(String(10))
+#     tval = Column(String, default='')
+#     fval = Column(Float, default=None, nullable=True)
+#     ival = Column(Integer, default=None, nullable=True)
+#     bval = Column(Boolean, default=None, nullable=True)
+#     dval = Column(DateTime, default=None, nullable=True)
 
 
 class DbComputer(Base):
@@ -281,8 +281,14 @@ class DbNode(Base):
 
     nodeversion = Column(Integer, default=1)
 
-    attributes = relationship('DbAttribute', uselist=True, backref='dbnode')
-    extras = relationship('DbExtra', uselist=True, backref='dbnode')
+    attributes = Column(JSONB, nullable=True)
+    extras = Column(JSONB, nullable=True)
+
+    # attributes = Column(String(255))
+    # extras = Column(String(255))
+
+    # attributes = relationship('DbAttribute', uselist=True, backref='dbnode')
+    # extras = relationship('DbExtra', uselist=True, backref='dbnode')
 
     outputs = relationship(
         "DbNode",

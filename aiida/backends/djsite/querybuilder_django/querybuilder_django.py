@@ -20,10 +20,13 @@ import six
 
 # ~ import aiida.backends.djsite.querybuilder_django.dummy_model as dummy_model
 from . import dummy_model
-from aiida.backends.djsite.db.models import DbAttribute, DbExtra, ObjectDoesNotExist
+# from aiida.backends.djsite.db.models import DbAttribute, DbExtra, ObjectDoesNotExist
+from aiida.backends.djsite.db.models import ObjectDoesNotExist
 
 from sqlalchemy import and_, or_, not_, exists, select, exists, case
-from sqlalchemy.types import Float, String
+from sqlalchemy.types import Integer, Float, Boolean, DateTime, String
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy_utils.types.choice import Choice
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm.attributes import InstrumentedAttribute, QueryableAttribute
 
@@ -37,6 +40,44 @@ from aiida.common.exceptions import (
     MissingPluginError, ConfigurationError
 )
 
+from sqlalchemy.sql.expression import FunctionElement
+from sqlalchemy.ext.compiler import compiles
+
+
+class jsonb_array_length(FunctionElement):
+    name = 'jsonb_array_len'
+
+
+@compiles(jsonb_array_length)
+def compile(element, compiler, **kw):
+    """
+    Get length of array defined in a JSONB column
+    """
+    return "jsonb_array_length(%s)" % compiler.process(element.clauses)
+
+
+class array_length(FunctionElement):
+    name = 'array_len'
+
+
+@compiles(array_length)
+def compile(element, compiler, **kw):
+    """
+    Get length of array defined in a JSONB column
+    """
+    return "array_length(%s)" % compiler.process(element.clauses)
+
+
+class jsonb_typeof(FunctionElement):
+    name = 'jsonb_typeof'
+
+
+@compiles(jsonb_typeof)
+def compile(element, compiler, **kw):
+    """
+    Get length of array defined in a JSONB column
+    """
+    return "jsonb_typeof(%s)" % compiler.process(element.clauses)
 
 class QueryBuilderImplDjango(QueryBuilderInterface):
 
@@ -285,220 +326,369 @@ class QueryBuilderImplDjango(QueryBuilderInterface):
 
         return expansions
 
+    # def get_filter_expr_from_attributes(
+    #         self, operator, value, attr_key,
+    #         column=None, column_name=None,
+    #         alias=None):
+    #
+    #     def get_attribute_db_column(mapped_class, dtype, castas=None):
+    #         if dtype == 't':
+    #             mapped_entity = mapped_class.tval
+    #             additional_type_constraint = None
+    #         elif dtype == 'b':
+    #             mapped_entity = mapped_class.bval
+    #             additional_type_constraint = None
+    #         elif dtype == 'f':
+    #             mapped_entity = mapped_class.fval
+    #             additional_type_constraint = None
+    #         elif dtype == 'i':
+    #             mapped_entity = mapped_class.ival
+    #             # IN the schema, we also have dicts and lists storing something in the
+    #             # ival column, namely the length. I need to check explicitly whether
+    #             # this is meant to be an integer!
+    #             additional_type_constraint = mapped_class.datatype == 'int'
+    #         elif dtype == 'd':
+    #             mapped_entity = mapped_class.dval
+    #             additional_type_constraint = None
+    #         else:
+    #             raise InputValidationError(
+    #                 "I don't know what to do with dtype {}".format(dtype)
+    #             )
+    #         if castas == 't':
+    #             mapped_entity = cast(mapped_entity, String)
+    #         elif castas == 'f':
+    #             mapped_entity = cast(mapped_entity, Float)
+    #
+    #         return mapped_entity, additional_type_constraint
+    #
+    #     if column:
+    #         mapped_class = column.prop.mapper.class_
+    #     else:
+    #         column = getattr(alias, column_name)
+    #         mapped_class = column.prop.mapper.class_
+    #     # Ok, so we have an attribute key here.
+    #     # Unless cast is specified, will try to infer my self where the value
+    #     # is stored
+    #     # Datetime -> dval
+    #     # bool -> bval
+    #     # string -> tval
+    #     # integer -> ival, fval (cast ival to float)
+    #     # float -> ival, fval (cast ival to float)
+    #     # If the user specified of_type ??
+    #     # That is basically a query for where the value is sitting
+    #     #   (which db_column in the dbattribtues)
+    #     # If the user specified in what to cast, he wants an operation to
+    #     #   be performed to cast the value to a different type
+    #     if isinstance(value, (list, tuple)):
+    #         value_type_set = set([type(i) for i in value])
+    #         if len(value_type_set) > 1:
+    #             raise InputValidationError('{}  contains more than one type'.format(value))
+    #         elif len(value_type_set) == 0:
+    #             raise InputValidationError('Given list is empty, cannot determine type')
+    #         else:
+    #             value_to_consider = value[0]
+    #     else:
+    #         value_to_consider = value
+    #
+    #     # First cases, I maybe need not do anything but just count the
+    #     # number of entries
+    #     if operator in ('of_length', 'shorter', 'longer'):
+    #         raise NotImplementedError(
+    #             "Filtering by lengths of arrays or lists is not implemented\n"
+    #             "in the Django-Backend"
+    #         )
+    #     elif operator == 'of_type':
+    #         raise NotImplementedError(
+    #             "Filtering by type is not implemented\n"
+    #             "in the Django-Backend"
+    #         )
+    #     elif operator == 'contains':
+    #         raise NotImplementedError(
+    #             "Contains is not implemented in the Django-backend"
+    #         )
+    #
+    #     elif operator == 'has_key':
+    #         if issubclass(mapped_class, dummy_model.DbAttribute):
+    #             expr = alias.attributes.any(mapped_class.key == '.'.join(attr_key + [value]))
+    #         elif issubclass(mapped_class, dummy_model.DbExtra):
+    #             expr = alias.extras.any(mapped_class.key == '.'.join(attr_key + [value]))
+    #         else:
+    #             raise TypeError("I was given {} as an attribute base class".format(mapped_class))
+    #
+    #     else:
+    #         types_n_casts = []
+    #         if isinstance(value_to_consider, six.string_types):
+    #             types_n_casts.append(('t', None))
+    #         elif isinstance(value_to_consider, bool):
+    #             types_n_casts.append(('b', None))
+    #         elif isinstance(value_to_consider, (int, float)):
+    #             types_n_casts.append(('f', None))
+    #             types_n_casts.append(('i', 'f'))
+    #         elif isinstance(value_to_consider, datetime):
+    #             types_n_casts.append(('d', None))
+    #
+    #         expressions = []
+    #         for dtype, castas in types_n_casts:
+    #             attr_column, additional_type_constraint = get_attribute_db_column(
+    #                             mapped_class, dtype, castas=castas)
+    #             expression_this_typ_cas = self.get_filter_expr(
+    #                         operator, value, attr_key=[],
+    #                         column=attr_column,
+    #                         is_attribute=False
+    #                     )
+    #             if additional_type_constraint is not None:
+    #                 expression_this_typ_cas = and_(
+    #                     expression_this_typ_cas, additional_type_constraint)
+    #             expressions.append(expression_this_typ_cas)
+    #
+    #         actual_attr_key = '.'.join(attr_key)
+    #         expr = column.any(and_(
+    #             mapped_class.key == actual_attr_key,
+    #             or_(*expressions)
+    #         )
+    #         )
+    #     return expr
+
     def get_filter_expr_from_attributes(
             self, operator, value, attr_key,
             column=None, column_name=None,
             alias=None):
 
-        def get_attribute_db_column(mapped_class, dtype, castas=None):
-            if dtype == 't':
-                mapped_entity = mapped_class.tval
-                additional_type_constraint = None
-            elif dtype == 'b':
-                mapped_entity = mapped_class.bval
-                additional_type_constraint = None
-            elif dtype == 'f':
-                mapped_entity = mapped_class.fval
-                additional_type_constraint = None
-            elif dtype == 'i':
-                mapped_entity = mapped_class.ival
-                # IN the schema, we also have dicts and lists storing something in the
-                # ival column, namely the length. I need to check explicitly whether
-                # this is meant to be an integer!
-                additional_type_constraint = mapped_class.datatype == 'int'
-            elif dtype == 'd':
-                mapped_entity = mapped_class.dval
-                additional_type_constraint = None
+        def cast_according_to_type(path_in_json, value):
+            if isinstance(value, bool):
+                type_filter = jsonb_typeof(path_in_json) == 'boolean'
+                casted_entity = path_in_json.astext.cast(Boolean)
+            elif isinstance(value, (int, float)):
+                type_filter = jsonb_typeof(path_in_json) == 'number'
+                casted_entity = path_in_json.astext.cast(Float)
+            elif isinstance(value, dict) or value is None:
+                type_filter = jsonb_typeof(path_in_json) == 'object'
+                casted_entity = path_in_json.astext.cast(JSONB)  # BOOLEANS?
+            elif isinstance(value, dict):
+                type_filter = jsonb_typeof(path_in_json) == 'array'
+                casted_entity = path_in_json.astext.cast(JSONB)  # BOOLEANS?
+            elif isinstance(value, six.string_types):
+                type_filter = jsonb_typeof(path_in_json) == 'string'
+                casted_entity = path_in_json.astext
+            elif value is None:
+                type_filter = jsonb_typeof(path_in_json) == 'null'
+                casted_entity = path_in_json.astext.cast(JSONB)  # BOOLEANS?
+            elif isinstance(value, datetime):
+                # type filter here is filter whether this attributes stores
+                # a string and a filter whether this string
+                # is compatible with a datetime (using a regex)
+                #  - What about historical values (BC, or before 1000AD)??
+                #  - Different ways to represent the timezone
+
+                type_filter = jsonb_typeof(path_in_json) == 'string'
+                regex_filter = path_in_json.astext.op(
+                    "SIMILAR TO"
+                )("\d\d\d\d-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:\d\d\.\d+((\+|\-)\d\d:\d\d)?")
+                type_filter = and_(type_filter, regex_filter)
+                casted_entity = path_in_json.cast(DateTime)
             else:
-                raise InputValidationError(
-                    "I don't know what to do with dtype {}".format(dtype)
-                )
-            if castas == 't':
-                mapped_entity = cast(mapped_entity, String)
-            elif castas == 'f':
-                mapped_entity = cast(mapped_entity, Float)
+                raise TypeError('Unknown type {}'.format(type(value)))
+            return type_filter, casted_entity
 
-            return mapped_entity, additional_type_constraint
+        if column is None:
+            column = _get_column(column_name, alias)
 
-        if column:
-            mapped_class = column.prop.mapper.class_
-        else:
-            column = getattr(alias, column_name)
-            mapped_class = column.prop.mapper.class_
-        # Ok, so we have an attribute key here.
-        # Unless cast is specified, will try to infer my self where the value
-        # is stored
-        # Datetime -> dval
-        # bool -> bval
-        # string -> tval
-        # integer -> ival, fval (cast ival to float)
-        # float -> ival, fval (cast ival to float)
-        # If the user specified of_type ??
-        # That is basically a query for where the value is sitting
-        #   (which db_column in the dbattribtues)
-        # If the user specified in what to cast, he wants an operation to
-        #   be performed to cast the value to a different type
-        if isinstance(value, (list, tuple)):
-            value_type_set = set([type(i) for i in value])
-            if len(value_type_set) > 1:
-                raise InputValidationError('{}  contains more than one type'.format(value))
-            elif len(value_type_set) == 0:
-                raise InputValidationError('Given list is empty, cannot determine type')
-            else:
-                value_to_consider = value[0]
-        else:
-            value_to_consider = value
-
-        # First cases, I maybe need not do anything but just count the
-        # number of entries
-        if operator in ('of_length', 'shorter', 'longer'):
-            raise NotImplementedError(
-                "Filtering by lengths of arrays or lists is not implemented\n"
-                "in the Django-Backend"
-            )
+        database_entity = column[tuple(attr_key)]
+        if operator == '==':
+            type_filter, casted_entity = cast_according_to_type(database_entity, value)
+            expr = case([(type_filter, casted_entity == value)], else_=False)
+        elif operator == '>':
+            type_filter, casted_entity = cast_according_to_type(database_entity, value)
+            expr = case([(type_filter, casted_entity > value)], else_=False)
+        elif operator == '<':
+            type_filter, casted_entity = cast_according_to_type(database_entity, value)
+            expr = case([(type_filter, casted_entity < value)], else_=False)
+        elif operator in ('>=', '=>'):
+            type_filter, casted_entity = cast_according_to_type(database_entity, value)
+            expr = case([(type_filter, casted_entity >= value)], else_=False)
+        elif operator in ('<=', '=<'):
+            type_filter, casted_entity = cast_according_to_type(database_entity, value)
+            expr = case([(type_filter, casted_entity <= value)], else_=False)
         elif operator == 'of_type':
-            raise NotImplementedError(
-                "Filtering by type is not implemented\n"
-                "in the Django-Backend"
-            )
+            # http://www.postgresql.org/docs/9.5/static/functions-json.html
+            #  Possible types are object, array, string, number, boolean, and null.
+            valid_types = ('object', 'array', 'string', 'number', 'boolean', 'null')
+            if value not in valid_types:
+                raise InputValidationError(
+                    "value {} for of_type is not among valid types\n"
+                    "{}".format(value, valid_types)
+                )
+            expr = jsonb_typeof(database_entity) == value
+        elif operator == 'like':
+            type_filter, casted_entity = cast_according_to_type(database_entity, value)
+            expr = case([(type_filter, casted_entity.like(value))], else_=False)
+        elif operator == 'ilike':
+            type_filter, casted_entity = cast_according_to_type(database_entity, value)
+            expr = case([(type_filter, casted_entity.ilike(value))], else_=False)
+        elif operator == 'in':
+            type_filter, casted_entity = cast_according_to_type(database_entity, value[0])
+            expr = case([(type_filter, casted_entity.in_(value))], else_=False)
         elif operator == 'contains':
-            raise NotImplementedError(
-                "Contains is not implemented in the Django-backend"
-            )
-
-
+            expr = database_entity.cast(JSONB).contains(value)
         elif operator == 'has_key':
-            if issubclass(mapped_class, dummy_model.DbAttribute):
-                expr = alias.attributes.any(mapped_class.key == '.'.join(attr_key + [value]))
-            elif issubclass(mapped_class, dummy_model.DbExtra):
-                expr = alias.extras.any(mapped_class.key == '.'.join(attr_key + [value]))
-            else:
-                raise TypeError("I was given {} as an attribute base class".format(mapped_class))
+            expr = database_entity.cast(JSONB).has_key(value)  # noqa
+        elif operator == 'of_length':
+            expr = case([(
+                jsonb_typeof(database_entity) == 'array',
+                jsonb_array_length(database_entity.cast(JSONB)) == value)], else_=False)
 
+        elif operator == 'longer':
+            expr = case([(
+                jsonb_typeof(database_entity) == 'array',
+                jsonb_array_length(database_entity.cast(JSONB)) > value)], else_=False)
+
+        elif operator == 'shorter':
+            expr = case([(
+                jsonb_typeof(database_entity) == 'array',
+                jsonb_array_length(database_entity.cast(JSONB)) < value)], else_=False)
         else:
-            types_n_casts = []
-            if isinstance(value_to_consider, six.string_types):
-                types_n_casts.append(('t', None))
-            elif isinstance(value_to_consider, bool):
-                types_n_casts.append(('b', None))
-            elif isinstance(value_to_consider, (int, float)):
-                types_n_casts.append(('f', None))
-                types_n_casts.append(('i', 'f'))
-            elif isinstance(value_to_consider, datetime):
-                types_n_casts.append(('d', None))
-
-            expressions = []
-            for dtype, castas in types_n_casts:
-                attr_column, additional_type_constraint = get_attribute_db_column(
-                                mapped_class, dtype, castas=castas)
-                expression_this_typ_cas = self.get_filter_expr(
-                            operator, value, attr_key=[],
-                            column=attr_column,
-                            is_attribute=False
-                        )
-                if additional_type_constraint is not None:
-                    expression_this_typ_cas = and_(
-                        expression_this_typ_cas, additional_type_constraint)
-                expressions.append(expression_this_typ_cas)
-
-            actual_attr_key = '.'.join(attr_key)
-            expr = column.any(and_(
-                mapped_class.key == actual_attr_key,
-                or_(*expressions)
-            )
+            raise InputValidationError(
+                "Unknown operator {} for filters in JSON field".format(operator)
             )
         return expr
+
+    # def get_projectable_attribute(
+    #         self, alias, column_name, attrpath,
+    #         cast=None, **kwargs
+    # ):
+    #     if cast is not None:
+    #         raise NotImplementedError(
+    #             "Casting is not implemented in the Django backend"
+    #         )
+    #     if not attrpath:
+    #         # If the user with Django backend wants all the attributes or all
+    #         # the extras, I will select as entity the ID of the node.
+    #         # in get_aiida_res, this is transformed to the dictionary of attributes.
+    #         if column_name in ('attributes', 'extras'):
+    #             entity = alias.id
+    #         else:
+    #             raise NotImplementedError(
+    #                 "Whatever you asked for "
+    #                 "({}) is not implemented"
+    #                 "".format(column_name)
+    #             )
+    #     else:
+    #         aliased_attributes = aliased(getattr(alias, column_name).prop.mapper.class_)
+    #
+    #         if not issubclass(alias._aliased_insp.class_, self.Node):
+    #             NotImplementedError(
+    #                 "Other classes than Nodes are not implemented yet"
+    #             )
+    #
+    #         attrkey = '.'.join(attrpath)
+    #
+    #         exists_stmt = exists(select([1], correlate=True).select_from(
+    #             aliased_attributes
+    #         ).where(and_(
+    #             aliased_attributes.key == attrkey,
+    #             aliased_attributes.dbnode_id == alias.id
+    #         )))
+    #
+    #         select_stmt = select(
+    #             [aliased_attributes.id], correlate=True
+    #         ).select_from(aliased_attributes).where(and_(
+    #             aliased_attributes.key == attrkey,
+    #             aliased_attributes.dbnode_id == alias.id
+    #         )).label('miao')
+    #
+    #         entity = case([(exists_stmt, select_stmt), ], else_=None)
+    #
+    #     return entity
 
     def get_projectable_attribute(
             self, alias, column_name, attrpath,
             cast=None, **kwargs
     ):
-        if cast is not None:
-            raise NotImplementedError(
-                "Casting is not implemented in the Django backend"
-            )
-        if not attrpath:
-            # If the user with Django backend wants all the attributes or all
-            # the extras, I will select as entity the ID of the node.
-            # in get_aiida_res, this is transformed to the dictionary of attributes.
-            if column_name in ('attributes', 'extras'):
-                entity = alias.id
-            else:
-                raise NotImplementedError(
-                    "Whatever you asked for "
-                    "({}) is not implemented"
-                    "".format(column_name)
-                )
+        """
+        :returns: An attribute store in a JSON field of the give column
+        """
+
+        entity = _get_column(column_name, alias)[(attrpath)]
+        if cast is None:
+            entity = entity
+        elif cast == 'f':
+            entity = entity.astext.cast(Float)
+        elif cast == 'i':
+            entity = entity.astext.cast(Integer)
+        elif cast == 'b':
+            entity = entity.astext.cast(Boolean)
+        elif cast == 't':
+            entity = entity.astext
+        elif cast == 'j':
+            entity = entity.astext.cast(JSONB)
+        elif cast == 'd':
+            entity = entity.astext.cast(DateTime)
         else:
-            aliased_attributes = aliased(getattr(alias, column_name).prop.mapper.class_)
-
-            if not issubclass(alias._aliased_insp.class_, self.Node):
-                NotImplementedError(
-                    "Other classes than Nodes are not implemented yet"
-                )
-
-            attrkey = '.'.join(attrpath)
-
-            exists_stmt = exists(select([1], correlate=True).select_from(
-                aliased_attributes
-            ).where(and_(
-                aliased_attributes.key == attrkey,
-                aliased_attributes.dbnode_id == alias.id
-            )))
-
-            select_stmt = select(
-                [aliased_attributes.id], correlate=True
-            ).select_from(aliased_attributes).where(and_(
-                aliased_attributes.key == attrkey,
-                aliased_attributes.dbnode_id == alias.id
-            )).label('miao')
-
-            entity = case([(exists_stmt, select_stmt), ], else_=None)
-
+            raise InputValidationError(
+                "Unkown casting key {}".format(cast)
+            )
         return entity
+
+    # def get_aiida_res(self, key, res):
+    #     """
+    #     Some instance returned by ORM (django or SA) need to be converted
+    #     to Aiida instances (eg nodes)
+    #
+    #     :param res: the result returned by the query
+    #     :param key: the key that this entry would be return with
+    #
+    #     :returns: an aiida-compatible instance
+    #     """
+    #     if key.startswith('attributes.'):
+    #         # If you want a specific attributes, that key was stored in res.
+    #         # So I call the getvalue method to expand into a dictionary
+    #         try:
+    #             returnval = DbAttribute.objects.get(id=res).getvalue()
+    #         except ObjectDoesNotExist:
+    #             # If the object does not exist, return None. This is consistent
+    #             # with SQLAlchemy inside the JSON
+    #             returnval = None
+    #     elif key.startswith('extras.'):
+    #         # Same as attributes
+    #         try:
+    #             returnval = DbExtra.objects.get(id=res).getvalue()
+    #         except ObjectDoesNotExist:
+    #             returnval = None
+    #     elif key == 'attributes':
+    #         # If you asked for all attributes, the QB return the ID of the node
+    #         # I use DbAttribute.get_all_values_for_nodepk
+    #         # to get the dictionary
+    #         return DbAttribute.get_all_values_for_nodepk(res)
+    #     elif key == 'extras':
+    #         # same as attributes
+    #         return DbExtra.get_all_values_for_nodepk(res)
+    #     elif key in ('_metadata', 'transport_params') and res is not None:
+    #         # Metadata and transport_params are stored as json strings in the DB:
+    #         return json_loads(res)
+    #     elif isinstance(res, (self.Group, self.Node, self.Computer, self.User)):
+    #         returnval = res.get_aiida_class()
+    #     else:
+    #         returnval = res
+    #     return returnval
 
     def get_aiida_res(self, key, res):
         """
         Some instance returned by ORM (django or SA) need to be converted
-        to Aiida instances (eg nodes)
+        to Aiida instances (eg nodes). Choice (sqlalchemy_utils)
+        will return their value
 
+        :param key: The key
         :param res: the result returned by the query
-        :param key: the key that this entry would be return with
 
         :returns: an aiida-compatible instance
         """
-        if key.startswith('attributes.'):
-            # If you want a specific attributes, that key was stored in res.
-            # So I call the getvalue method to expand into a dictionary
-            try:
-                returnval = DbAttribute.objects.get(id=res).getvalue()
-            except ObjectDoesNotExist:
-                # If the object does not exist, return None. This is consistent
-                # with SQLAlchemy inside the JSON
-                returnval = None
-        elif key.startswith('extras.'):
-            # Same as attributes
-            try:
-                returnval = DbExtra.objects.get(id=res).getvalue()
-            except ObjectDoesNotExist:
-                returnval = None
-        elif key == 'attributes':
-            # If you asked for all attributes, the QB return the ID of the node
-            # I use DbAttribute.get_all_values_for_nodepk
-            # to get the dictionary
-            return DbAttribute.get_all_values_for_nodepk(res)
-        elif key == 'extras':
-            # same as attributes
-            return DbExtra.get_all_values_for_nodepk(res)
-        elif key in ('_metadata', 'transport_params') and res is not None:
-            # Metadata and transport_params are stored as json strings in the DB:
-            return json_loads(res)
-        elif isinstance(res, (self.Group, self.Node, self.Computer, self.User)):
+        if isinstance(res, (self.Group, self.Node, self.Computer, self.User)):
             returnval = res.get_aiida_class()
+        elif isinstance(res, Choice):
+            returnval = res.value
         else:
             returnval = res
         return returnval
-
 
     def yield_per(self, query, batch_size):
         """
