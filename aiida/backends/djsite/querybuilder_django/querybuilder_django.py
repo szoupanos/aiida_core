@@ -14,7 +14,6 @@ from __future__ import print_function
 from __future__ import absolute_import
 import datetime
 from datetime import datetime
-from json import loads as json_loads
 
 import six
 
@@ -280,108 +279,15 @@ class QueryBuilderImplDjango(QueryBuilderInterface):
         return expr
 
     def get_session(self):
-        # from aldjemy.core import get_engine
-        # from sqlalchemy.orm import sessionmaker
-        #
-        # engine = get_engine()
-        # _Session = sessionmaker(bind=engine)
-        # return _Session()
-        #
-        # return dummy_model.get_aldjemy_session()
+        from aiida.backends import sqlalchemy as sa, settings
+        from aiida.common.setup import get_profile_config
+        from aiida.backends.sqlalchemy.utils import reset_session
 
-        import re
-        from dateutil import parser
-        from multiprocessing.util import register_after_fork
-        from aiida.backends import sqlalchemy as sa
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import scoped_session
-        from sqlalchemy.orm import sessionmaker
+        if sa.get_scoped_session() is None:
+            config = get_profile_config(settings.AIIDADB_PROFILE)
+            reset_session(config)
 
-        def dumps_json(d):
-            """
-            Transforms all datetime object into isoformat and then returns the JSON
-            """
-
-            def f(v):
-                if isinstance(v, list):
-                    return [f(_) for _ in v]
-                elif isinstance(v, dict):
-                    return dict((key, f(val)) for key, val in v.items())
-                elif isinstance(v, datetime.datetime):
-                    return v.isoformat()
-                return v
-
-            return json_dumps(f(d))
-
-        date_reg = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+(\+\d{2}:\d{2})?$')
-
-        def loads_json(s):
-            """
-            Loads the json and try to parse each basestring as a datetime object
-            """
-
-            ret = json_loads(s)
-
-            def f(d):
-                if isinstance(d, list):
-                    for i, val in enumerate(d):
-                        d[i] = f(val)
-                    return d
-                elif isinstance(d, dict):
-                    for k, v in d.items():
-                        d[k] = f(v)
-                    return d
-                elif isinstance(d, six.string_types):
-                    if date_reg.match(d):
-                        try:
-                            return parser.parse(d)
-                        except (ValueError, TypeError):
-                            return d
-                    return d
-                return d
-
-            return f(ret)
-
-        def recreate_after_fork(engine):
-            """
-            :param engine: the engine that will be used by the sessionmaker
-
-            Callback called after a fork. Not only disposes the engine, but also recreates a new scoped session
-            to use independent sessions in the forked process.
-            """
-            sa.engine.dispose()
-            sa.scopedsessionclass = scoped_session(sessionmaker(bind=sa.engine, expire_on_commit=True))
-
-
-        try:
-            import ultrajson as json
-            from functools import partial
-
-            # double_precision = 15, to replicate what PostgreSQL numerical type is
-            # using
-            json_dumps = partial(json.dumps, double_precision=15)
-            json_loads = partial(json.loads, precise_float=True)
-        except ImportError:
-            import aiida.utils.json as json
-
-            json_dumps = json.dumps
-            json_loads = json.loads
-
-
-        engine_url = (
-            "postgresql://aiida:qaq4Sz6B4Q7BjdLDZUji@"
-            "localhost:5432/test_aiidadb_dj1"
-        )
-
-        sa.engine = create_engine(engine_url, json_serializer=dumps_json,
-                                  json_deserializer=loads_json, encoding='utf-8')
-        sa.scopedsessionclass = scoped_session(sessionmaker(bind=sa.engine,
-                                                            expire_on_commit=True))
-        register_after_fork(sa.engine, recreate_after_fork)
-
-        return sa.scopedsessionclass()
-        # return dummy_model.session
-
+        return sa.get_scoped_session()
 
     def modify_expansions(self, alias, expansions):
         """

@@ -102,32 +102,6 @@ class DbCalcState(Base):
     )
 
 
-# class DbAttribute(Base):
-#     __tablename__ = "db_dbattribute"
-#     id = Column(Integer, primary_key=True)
-#     dbnode_id = Column(Integer, ForeignKey('db_dbnode.id'))
-#     key = Column(String(255))
-#     datatype = Column(String(10))
-#     tval = Column(String, default='')
-#     fval = Column(Float, default=None, nullable=True)
-#     ival = Column(Integer, default=None, nullable=True)
-#     bval = Column(Boolean, default=None, nullable=True)
-#     dval = Column(DateTime, default=None, nullable=True)
-#
-#
-# class DbExtra(Base):
-#     __tablename__ = "db_dbextra"
-#     id = Column(Integer, primary_key=True)
-#     dbnode_id = Column(Integer, ForeignKey('db_dbnode.id'))
-#     key = Column(String(255))
-#     datatype = Column(String(10))
-#     tval = Column(String, default='')
-#     fval = Column(Float, default=None, nullable=True)
-#     ival = Column(Integer, default=None, nullable=True)
-#     bval = Column(Boolean, default=None, nullable=True)
-#     dval = Column(DateTime, default=None, nullable=True)
-
-
 class DbComputer(Base):
     __tablename__ = "db_dbcomputer"
 
@@ -430,20 +404,3 @@ class DbNode(Base):
 
 
 profile = get_profile_config(settings.AIIDADB_PROFILE)
-
-
-def get_aldjemy_session():
-    """
-    Use aldjemy to make a session
-
-    .. note:
-        Use only in this case. In normal production mode
-        it is safer make session explictly because it is more robust
-    """
-    from aldjemy.core import get_engine
-    engine = get_engine()
-    _Session = sessionmaker(bind=engine)
-    return _Session()
-
-
-session = get_aldjemy_session()

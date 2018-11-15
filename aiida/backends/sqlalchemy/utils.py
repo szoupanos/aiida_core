@@ -38,7 +38,7 @@ from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 
 from aiida.backends import sqlalchemy as sa, settings
-from aiida.common.setup import (get_profile_config)
+from aiida.common.setup import get_profile_config
 
 ALEMBIC_FILENAME = "alembic.ini"
 ALEMBIC_REL_PATH = "migrations"
