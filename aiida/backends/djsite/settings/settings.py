@@ -14,6 +14,8 @@ from __future__ import absolute_import
 import sys
 import os
 
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+
 from aiida.common.exceptions import ConfigurationError, MissingConfigurationError
 
 # get_property is used to read properties stored in the config json
@@ -213,11 +215,6 @@ INSTALLED_APPS = [
     'aiida.backends.djsite.db',
     'aldjemy',
 ]
-
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.dialects.postgresql import JSONB, JSON
-# from sqlalchemy.dialects.postgresql.json import JSONB
-from sqlalchemy.sql.sqltypes import JSON
 
 ALDJEMY_DATA_TYPES = {
     'UUIDField': lambda field: UUID(),
