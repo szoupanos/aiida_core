@@ -211,7 +211,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'aiida.backends.djsite.db',
-    # 'aldjemy',
+    'aldjemy',
 ]
 
 from sqlalchemy.dialects.postgresql import UUID

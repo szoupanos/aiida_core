@@ -19,8 +19,8 @@ from json import loads as json_loads
 import six
 
 # ~ import aiida.backends.djsite.querybuilder_django.dummy_model as dummy_model
-from . import dummy_model
-# import aiida.backends.djsite.db.models as djmodels
+# from . import dummy_model
+import aiida.backends.djsite.db.models as djmodels
 # from aiida.backends.djsite.db.models import DbAttribute, DbExtra, ObjectDoesNotExist
 from aiida.backends.djsite.db.models import ObjectDoesNotExist
 
@@ -87,33 +87,33 @@ class QueryBuilderImplDjango(QueryBuilderInterface):
 
     @property
     def Node(self):
-        return dummy_model.DbNode
-        # return djmodels.DbNode.sa
+        # return dummy_model.DbNode
+        return djmodels.DbNode.sa
 
     @property
     def Link(self):
-        return dummy_model.DbLink
-        # return djmodels.DbLink.sa
+        # return dummy_model.DbLink
+        return djmodels.DbLink.sa
 
     @property
     def Computer(self):
-        return dummy_model.DbComputer
-        # return djmodels.DbComputer.sa
+        # return dummy_model.DbComputer
+        return djmodels.DbComputer.sa
 
     @property
     def User(self):
-        return dummy_model.DbUser
-        # return djmodels.DbUser.sa
+        # return dummy_model.DbUser
+        return djmodels.DbUser.sa
 
     @property
     def Group(self):
-        return dummy_model.DbGroup
-        # return djmodels.DbGroup.sa
+        # return dummy_model.DbGroup
+        return djmodels.DbGroup.sa
 
     @property
     def table_groups_nodes(self):
-        return dummy_model.table_groups_nodes
-        # return djmodels.table_groups_nodes.sa
+        # return dummy_model.table_groups_nodes
+        return djmodels.table_groups_nodes.sa
 
     @property
     def AiidaNode(self):
