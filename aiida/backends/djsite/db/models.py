@@ -43,11 +43,20 @@ from aiida.backends.utils import AIIDA_ATTRIBUTE_SEP
 # load_dbenv() function).
 SCHEMA_VERSION = migrations.current_schema_version()
 
-
 class AiidaQuerySet(QuerySet):
     def iterator(self):
         for obj in super(AiidaQuerySet, self).iterator():
             yield obj.get_aiida_class()
+
+    # Note: __iter__ used to rely on the iterator in django 1.8 but does no longer in django 1.11
+    def __iter__(self):
+        return (x.get_aiida_class() for x in super(AiidaQuerySet, self).__iter__())
+
+
+    # Note: __getitem__ used to rely on the iterator in django 1.8 but does no longer in django 1.11
+    def __getitem__(self, key):
+        res = super(AiidaQuerySet, self).__getitem__(key)
+        return res.get_aiida_class()
 
 
 class AiidaObjectManager(m.Manager):
@@ -1685,7 +1694,6 @@ class DbWorkflow(m.Model):
 
     def get_calculations(self):
         from aiida.orm import JobCalculation
-
         return JobCalculation.query(workflow_step=self.steps)
 
     def get_sub_workflows(self):
@@ -1801,7 +1809,6 @@ class DbWorkflowStep(m.Model):
 
     def get_calculations(self, state=None):
         from aiida.orm import JobCalculation
-
         if (state == None):
             return JobCalculation.query(workflow_step=self)
         else:

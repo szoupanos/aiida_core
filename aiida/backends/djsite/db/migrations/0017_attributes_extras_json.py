@@ -16,7 +16,7 @@ DOWN_REVISION = '1.0.16'
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('db', '0016_uuid_field_update'),
+        ('db', '0016_django_1_11'),
     ]
 
     operations = [
