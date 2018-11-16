@@ -12,7 +12,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 
-LATEST_MIGRATION = '0017_attributes_extras_json'
+LATEST_MIGRATION = '0019_attributes_extras_json'
 
 
 def _update_schema_version(version, apps, schema_editor):

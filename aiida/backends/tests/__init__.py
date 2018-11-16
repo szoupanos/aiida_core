@@ -26,7 +26,6 @@ db_test_list = {
     BACKEND_DJANGO: {
         'generic': ['aiida.backends.djsite.db.subtests.generic'],
         'nodes': ['aiida.backends.djsite.db.subtests.nodes'],
-        'djangomigrations': ['aiida.backends.djsite.db.subtests.djangomigrations'],
         'migrations': ['aiida.backends.djsite.db.subtests.migrations'],
         'query': ['aiida.backends.djsite.db.subtests.query'],
     },
@@ -56,6 +55,7 @@ db_test_list = {
         'backup_setup_script': ['aiida.backends.tests.backup_setup_script'],
         'restapi': ['aiida.backends.tests.restapi'],
         'examplehelpers': ['aiida.backends.tests.example_helpers'],
+        'cmdline.commands.calcjob': ['aiida.backends.tests.cmdline.commands.test_calcjob'],
         'cmdline.commands.calculation': ['aiida.backends.tests.cmdline.commands.test_calculation'],
         'cmdline.commands.code': ['aiida.backends.tests.cmdline.commands.test_code'],
         'cmdline.commands.comment': ['aiida.backends.tests.cmdline.commands.test_comment'],
@@ -93,6 +93,7 @@ db_test_list = {
         'orm.log': ['aiida.backends.tests.orm.log'],
         'orm.mixins': ['aiida.backends.tests.orm.mixins'],
         'orm.utils.loaders': ['aiida.backends.tests.orm.utils.loaders'],
+        'work.calcfunctions': ['aiida.backends.tests.work.test_calcfunctions'],
         'work.class_loader': ['aiida.backends.tests.work.class_loader'],
         'work.daemon': ['aiida.backends.tests.work.daemon'],
         'work.futures': ['aiida.backends.tests.work.test_futures'],
@@ -112,7 +113,6 @@ db_test_list = {
         'plugin_loader': ['aiida.backends.tests.test_plugin_loader'],
         'daemon': ['aiida.backends.tests.daemon'],
         'caching_config': ['aiida.backends.tests.test_caching_config'],
-        'inline_calculation': ['aiida.backends.tests.inline_calculation'],
     }
 }
 
