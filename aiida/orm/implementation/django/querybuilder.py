@@ -13,7 +13,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import datetime
 from datetime import datetime
 
 import six
@@ -23,51 +22,14 @@ import six
 from sqlalchemy_utils.types.choice import Choice
 from sqlalchemy.sql.expression import and_, or_, not_, case
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.types import Integer, Float, Boolean, DateTime
 
 import aiida.backends.djsite.db.models as djmodels
-from aiida.backends.utils import get_column
 from aiida.common.exceptions import InputValidationError
 from aiida.orm.implementation.django import dummy_model
 from aiida.orm.implementation.querybuilder import BackendQueryBuilder
-
-
-class jsonb_array_length(FunctionElement):  # pylint: disable=too-few-public-methods, invalid-name
-    name = 'jsonb_array_len'
-
-
-@compiles(jsonb_array_length)
-def compile(element, compiler, **kwargs):  # pylint: disable=unused-argument, invalid-name, redefined-builtin
-    """
-    Get length of array defined in a JSONB column
-    """
-    return "jsonb_array_length(%s)" % compiler.process(element.clauses)
-
-
-class array_length(FunctionElement):  # pylint: disable=too-few-public-methods, invalid-name
-    name = 'array_len'
-
-
-@compiles(array_length)
-def compile(element, compiler, **kwargs):  # pylint: disable=unused-argument, function-redefined
-    """
-    Get length of array defined in a JSONB column
-    """
-    return "array_length(%s)" % compiler.process(element.clauses)
-
-
-class jsonb_typeof(FunctionElement):  # pylint: disable=too-few-public-methods, invalid-name
-    name = 'jsonb_typeof'
-
-
-@compiles(jsonb_typeof)
-def compile(element, compiler, **kwargs):  # pylint: disable=unused-argument, function-redefined
-    """
-    Get length of array defined in a JSONB column
-    """
-    return "jsonb_typeof(%s)" % compiler.process(element.clauses)
+from aiida.utils.queries import jsonb_typeof
+from aiida.utils.queries import jsonb_array_length
 
 
 class DjangoQueryBuilder(BackendQueryBuilder):
@@ -102,32 +64,16 @@ class DjangoQueryBuilder(BackendQueryBuilder):
 
     @property
     def AuthInfo(self):
-        return dummy_model.DbAuthInfo.sa
+        return dummy_model.DbAuthInfo
 
     @property
     def table_groups_nodes(self):
-        return dummy_model.table_groups_nodes.sa
+        return dummy_model.table_groups_nodes
 
     @property
     def AiidaNode(self):
         import aiida.orm.implementation.django.node
         return aiida.orm.implementation.django.node.Node
-
-    @property
-    def AiidaGroup(self):
-        import aiida.orm.implementation.django.group
-        return aiida.orm.implementation.django.group.Group
-
-    @property
-    def AiidaUser(self):  # pylint: disable=invalid-name
-        import aiida.orm
-        return aiida.orm.User
-
-    @property
-    def AiidaComputer(self):  # pylint: disable=invalid-name
-
-        import aiida.orm
-        return aiida.orm.Computer
 
     def get_filter_expr(self, operator, value, attr_key, is_attribute, alias=None, column=None, column_name=None):
         """
@@ -253,8 +199,8 @@ class DjangoQueryBuilder(BackendQueryBuilder):
             else:
                 if column is None:
                     if (alias is None) and (column_name is None):
-                        raise Exception("I need to get the column but do not know \n" "the alias and the column name")
-                    column = get_column(column_name, alias)
+                        raise Exception("I need to get the column but do not know the alias and the column name")
+                    column = self.get_column(column_name, alias)
                 expr = self.get_filter_expr_from_column(operator, value, column)
         if negation:
             return not_(expr)
@@ -273,10 +219,8 @@ class DjangoQueryBuilder(BackendQueryBuilder):
 
     def modify_expansions(self, alias, expansions):
         """
-        For the Django schema, we have as additioanl expansions 'attributes'
-        and 'extras'
+        For the Django schema, we have as additional expansions 'attributes' and 'extras'
         """
-
         if issubclass(alias._sa_class_manager.class_, self.Node):  # pylint: disable=protected-access
             expansions.append("attributes")
             expansions.append("extras")
@@ -328,7 +272,7 @@ class DjangoQueryBuilder(BackendQueryBuilder):
             return type_filter, casted_entity
 
         if column is None:
-            column = get_column(column_name, alias)
+            column = self.get_column(column_name, alias)
 
         database_entity = column[tuple(attr_key)]
         if operator == '==':
@@ -390,7 +334,7 @@ class DjangoQueryBuilder(BackendQueryBuilder):
         :returns: An attribute store in a JSON field of the give column
         """
 
-        entity = get_column(column_name, alias)[(attrpath)]
+        entity = self.get_column(column_name, alias)[(attrpath)]
         if cast is None:
             entity = entity
         elif cast == 'f':
@@ -411,9 +355,7 @@ class DjangoQueryBuilder(BackendQueryBuilder):
 
     def get_aiida_res(self, key, res):
         """
-        Some instance returned by ORM (django or SA) need to be converted
-        to Aiida instances (eg nodes). Choice (sqlalchemy_utils)
-        will return their value
+        Some instance returned by ORM (django or SA) need to be converted to Aiida instances (eg nodes)
 
         :param key: The key
         :param res: the result returned by the query
@@ -465,7 +407,7 @@ class DjangoQueryBuilder(BackendQueryBuilder):
             results = query.yield_per(batch_size)
 
             if len(tag_to_index_dict) == 1:
-                # Sqlalchemy, for some strange reason, does not return a list of lsits
+                # Sqlalchemy, for some strange reason, does not return a list of lists
                 # if you have provided an ormclass
 
                 if list(tag_to_index_dict.values()) == ['*']:
