@@ -59,3 +59,6 @@ class SqlaBackend(Backend):
 
     def query(self):
         return querybuilder.SqlaQueryBuilder(self)
+
+    def get_backend_entity(self, model_instance):
+        pass

@@ -88,6 +88,13 @@ class Backend(object):
         :rtype: :class:`aiida.orm.implementation.BackendQueryBuilder`
         """
 
+    @abc.abstractmethod
+    def get_backend_entity(self, model_instance):
+        """
+        Return the backend entity that corresponds to the given Model instance
+        :return:
+        """
+
 
 @six.add_metaclass(abc.ABCMeta)
 class BackendEntity(object):

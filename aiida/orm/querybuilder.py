@@ -29,7 +29,6 @@ import logging
 # Checking for correct input with the inspect module
 from inspect import isclass as inspect_isclass
 
-import singledispatch
 import six
 import warnings
 from six.moves import range, zip
@@ -45,18 +44,16 @@ from sqlalchemy.types import Integer
 from aiida.common.exceptions import InputValidationError, ConfigurationError
 # The way I get column as a an attribute to the orm class
 from aiida.common.links import LinkType
-from aiida.orm.implementation.computers import BackendComputer
-from aiida.orm.implementation.groups import BackendGroup
-from aiida.orm.implementation.users import BackendUser
 from aiida.orm.node import Node
 from aiida.orm.utils import convert
 
 from . import authinfos
 from . import backends
 from . import computers
-from . import entities
 from . import groups
 from . import users
+from . import entities
+from . import factories
 
 __all__ = ('QueryBuilder', )
 
@@ -1857,8 +1854,7 @@ class QueryBuilder(object):
 
     @staticmethod
     def get_aiida_entity_res(backend_entity):
-        from aiida.orm.querybuilder import get_orm_entity
-        return get_orm_entity(backend_entity)
+        return factories.EntityFactory.get_orm_from_backend_entity(backend_entity)
 
     def inject_query(self, query):
         """
@@ -1908,8 +1904,8 @@ class QueryBuilder(object):
         resultrow = self._impl.first(query)
         try:
             returnval = [
-                # self._impl.get_aiida_res(self._attrkeys_as_in_sql_result[colindex], rowitem)
-                get_orm_entity(self._impl.get_backend_entity_res(self._attrkeys_as_in_sql_result[colindex], rowitem))
+                factories.EntityFactory.get_orm_from_backend_entity(
+                    self._impl.get_backend_entity_res(self._attrkeys_as_in_sql_result[colindex], rowitem))
                 for colindex, rowitem in enumerate(resultrow)
             ]
         except TypeError:
@@ -1919,7 +1915,7 @@ class QueryBuilder(object):
                 raise Exception("I have not received an iterable\n" "but the number of projections is > 1")
             # It still returns a list!
             else:
-                returnval = [ get_orm_entity(
+                returnval = [factories.EntityFactory.get_orm_from_backend_entity(
                     self._impl.get_backend_entity_res(self._attrkeys_as_in_sql_result[0], resultrow))]
         return returnval
 
@@ -1961,7 +1957,6 @@ class QueryBuilder(object):
 
         :returns: a generator of lists
         """
-        from aiida.orm.querybuilder import get_orm_entity
         query = self.get_query()
 
         for item in self._impl.iterall(query, batch_size, self._attrkeys_as_in_sql_result):
@@ -1969,7 +1964,7 @@ class QueryBuilder(object):
             for i, backend_item_entry in enumerate(item):
                 try:
                     # item[i] = convert.aiida_from_backend_entity(item_entry)
-                    item[i] = get_orm_entity(backend_item_entry)
+                    item[i] = factories.EntityFactory.get_orm_from_backend_entity(backend_item_entry)
                 except ValueError:
                     # Keep the current value
                     pass
@@ -2127,34 +2122,3 @@ class QueryBuilder(object):
         cls = kwargs.pop('cls', Node)
         self.append(cls=cls, ancestor_of=join_to, autotag=True, **kwargs)
         return self
-
-##################################################################
-# Singledispatch to get the ORM instance from the backend instance
-##################################################################
-@singledispatch.singledispatch
-def get_orm_entity(backent_entity_instance):
-    return None
-
-
-@get_orm_entity.register(BackendGroup)
-def _(backent_entity_instance):
-    return groups.Group.from_backend_entity(backent_entity_instance)
-
-
-@get_orm_entity.register(Node)
-def _(backent_entity_instance):
-    """
-    This should be changed as soon as Node becomes an Entity
-    aiida.orm.entities.Entity
-    """
-    return backent_entity_instance
-
-
-@get_orm_entity.register(BackendComputer)
-def _(backent_entity_instance):
-    return computers.Computer.from_backend_entity(backent_entity_instance)
-
-
-@get_orm_entity.register(BackendUser)
-def _(backent_entity_instance):
-    return users.User.from_backend_entity(backent_entity_instance)
