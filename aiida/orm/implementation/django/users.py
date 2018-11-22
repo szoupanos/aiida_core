@@ -74,6 +74,7 @@ class DjangoUserCollection(users.BackendUserCollection):
 class DjangoUser(entities.DjangoModelEntity[models.DbUser], users.BackendUser):
     """The Django user class"""
 
+    # MODEL_CLASS = (models.DbUser, models.DbUser.sa)
     MODEL_CLASS = models.DbUser
 
     def __init__(self, backend, email, first_name, last_name, institution):

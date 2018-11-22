@@ -16,20 +16,18 @@ from __future__ import print_function
 from datetime import datetime
 
 import six
-
+from sqlalchemy.dialects.postgresql import JSONB  # pylint: disable=no-name-in-module, import-error
 # Remove when https://github.com/PyCQA/pylint/issues/1931 is fixed
 # pylint: disable=no-name-in-module, import-error
-from sqlalchemy_utils.types.choice import Choice
 from sqlalchemy.sql.expression import and_, or_, not_, case
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import Integer, Float, Boolean, DateTime
 
 import aiida.backends.djsite.db.models as djmodels
 from aiida.common.exceptions import InputValidationError
 from aiida.orm.implementation.django import dummy_model
 from aiida.orm.implementation.querybuilder import BackendQueryBuilder
-from aiida.utils.queries import jsonb_typeof
 from aiida.utils.queries import jsonb_array_length
+from aiida.utils.queries import jsonb_typeof
 
 
 class DjangoQueryBuilder(BackendQueryBuilder):
@@ -353,23 +351,6 @@ class DjangoQueryBuilder(BackendQueryBuilder):
             raise InputValidationError("Unkown casting key {}".format(cast))
         return entity
 
-    def get_aiida_res(self, key, res):
-        """
-        Some instance returned by ORM (django or SA) need to be converted to Aiida instances (eg nodes)
-
-        :param key: The key
-        :param res: the result returned by the query
-
-        :returns: an aiida-compatible instance
-        """
-        if isinstance(res, (self.Group, self.Node, self.Computer, self.User)):
-            returnval = res.get_aiida_class()
-        elif isinstance(res, Choice):
-            returnval = res.value
-        else:
-            returnval = res
-        return returnval
-
     def yield_per(self, query, batch_size):
         """
         :param count: Number of rows to yield per step
@@ -412,14 +393,14 @@ class DjangoQueryBuilder(BackendQueryBuilder):
 
                 if list(tag_to_index_dict.values()) == ['*']:
                     for rowitem in results:
-                        yield [self.get_aiida_res(tag_to_index_dict[0], rowitem)]
+                        yield [self.get_backend_entity_res(tag_to_index_dict[0], rowitem)]
                 else:
                     for rowitem, in results:
-                        yield [self.get_aiida_res(tag_to_index_dict[0], rowitem)]
+                        yield [self.get_backend_entity_res(tag_to_index_dict[0], rowitem)]
             elif len(tag_to_index_dict) > 1:
                 for resultrow in results:
                     yield [
-                        self.get_aiida_res(tag_to_index_dict[colindex], rowitem)
+                        self.get_backend_entity_res(tag_to_index_dict[colindex], rowitem)
                         for colindex, rowitem in enumerate(resultrow)
                     ]
 
@@ -439,7 +420,7 @@ class DjangoQueryBuilder(BackendQueryBuilder):
                 for this_result in results:
                     yield {
                         tag: {
-                            attrkey: self.get_aiida_res(attrkey, this_result[index_in_sql_result])
+                            attrkey: self.get_backend_entity_res(attrkey, this_result[index_in_sql_result])
                             for attrkey, index_in_sql_result in projected_entities_dict.items()
                         } for tag, projected_entities_dict in tag_to_projected_entity_dict.items()
                     }
@@ -450,7 +431,7 @@ class DjangoQueryBuilder(BackendQueryBuilder):
                     for this_result in results:
                         yield {
                             tag: {
-                                attrkey: self.get_aiida_res(attrkey, this_result)
+                                attrkey: self.get_backend_entity_res(attrkey, this_result)
                                 for attrkey, position in projected_entities_dict.items()
                             } for tag, projected_entities_dict in tag_to_projected_entity_dict.items()
                         }
@@ -458,7 +439,7 @@ class DjangoQueryBuilder(BackendQueryBuilder):
                     for this_result, in results:
                         yield {
                             tag: {
-                                attrkey: self.get_aiida_res(attrkey, this_result)
+                                attrkey: self.get_backend_entity_res(attrkey, this_result)
                                 for attrkey, position in projected_entities_dict.items()
                             } for tag, projected_entities_dict in tag_to_projected_entity_dict.items()
                         }

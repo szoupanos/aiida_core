@@ -19,36 +19,40 @@ An instance of one of the implementation classes becomes a member of the :func:`
 when instantiated by the user.
 """
 
+from __future__ import absolute_import
 # Warnings are issued for deprecations:
 from __future__ import division
-from __future__ import absolute_import
 from __future__ import print_function
-import warnings
-# Checking for correct input with the inspect module
-from inspect import isclass as inspect_isclass
+
 import copy
 import logging
+# Checking for correct input with the inspect module
+from inspect import isclass as inspect_isclass
+
+import singledispatch
 import six
+import warnings
 from six.moves import range, zip
-
-from aiida.orm.node import Node
-
 # The SQLAlchemy functionalities:
 from sqlalchemy import and_, or_, not_, func as sa_func, select, join
-from sqlalchemy.types import Integer
+from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.expression import cast
-from sqlalchemy.dialects.postgresql import array
+from sqlalchemy.types import Integer
+
 ## AIIDA modules:
 # For exception handling
 from aiida.common.exceptions import InputValidationError, ConfigurationError
 # The way I get column as a an attribute to the orm class
 from aiida.common.links import LinkType
-
-from . import backends
+from aiida.orm.implementation.computers import BackendComputer
+from aiida.orm.implementation.groups import BackendGroup
+from aiida.orm.implementation.users import BackendUser
+from aiida.orm.node import Node
 from aiida.orm.utils import convert
 
 from . import authinfos
+from . import backends
 from . import computers
 from . import entities
 from . import groups
@@ -1851,6 +1855,11 @@ class QueryBuilder(object):
                 self._hash = queryhelp_hash
         return query
 
+    @staticmethod
+    def get_aiida_entity_res(backend_entity):
+        from aiida.orm.querybuilder import get_orm_entity
+        return get_orm_entity(backend_entity)
+
     def inject_query(self, query):
         """
         Manipulate the query an inject it back.
@@ -1899,7 +1908,8 @@ class QueryBuilder(object):
         resultrow = self._impl.first(query)
         try:
             returnval = [
-                self._impl.get_aiida_res(self._attrkeys_as_in_sql_result[colindex], rowitem)
+                # self._impl.get_aiida_res(self._attrkeys_as_in_sql_result[colindex], rowitem)
+                get_orm_entity(self._impl.get_backend_entity_res(self._attrkeys_as_in_sql_result[colindex], rowitem))
                 for colindex, rowitem in enumerate(resultrow)
             ]
         except TypeError:
@@ -1909,7 +1919,8 @@ class QueryBuilder(object):
                 raise Exception("I have not received an iterable\n" "but the number of projections is > 1")
             # It still returns a list!
             else:
-                returnval = [self._impl.get_aiida_res(self._attrkeys_as_in_sql_result[0], resultrow)]
+                returnval = [ get_orm_entity(
+                    self._impl.get_backend_entity_res(self._attrkeys_as_in_sql_result[0], resultrow))]
         return returnval
 
     def one(self):
@@ -1950,13 +1961,15 @@ class QueryBuilder(object):
 
         :returns: a generator of lists
         """
+        from aiida.orm.querybuilder import get_orm_entity
         query = self.get_query()
 
         for item in self._impl.iterall(query, batch_size, self._attrkeys_as_in_sql_result):
             # Convert to AiiDA frontend entities (if they are such)
-            for i, item_entry in enumerate(item):
+            for i, backend_item_entry in enumerate(item):
                 try:
-                    item[i] = convert.aiida_from_backend_entity(item_entry)
+                    # item[i] = convert.aiida_from_backend_entity(item_entry)
+                    item[i] = get_orm_entity(backend_item_entry)
                 except ValueError:
                     # Keep the current value
                     pass
@@ -2114,3 +2127,34 @@ class QueryBuilder(object):
         cls = kwargs.pop('cls', Node)
         self.append(cls=cls, ancestor_of=join_to, autotag=True, **kwargs)
         return self
+
+##################################################################
+# Singledispatch to get the ORM instance from the backend instance
+##################################################################
+@singledispatch.singledispatch
+def get_orm_entity(backent_entity_instance):
+    return None
+
+
+@get_orm_entity.register(BackendGroup)
+def _(backent_entity_instance):
+    return groups.Group.from_backend_entity(backent_entity_instance)
+
+
+@get_orm_entity.register(Node)
+def _(backent_entity_instance):
+    """
+    This should be changed as soon as Node becomes an Entity
+    aiida.orm.entities.Entity
+    """
+    return backent_entity_instance
+
+
+@get_orm_entity.register(BackendComputer)
+def _(backent_entity_instance):
+    return computers.Computer.from_backend_entity(backent_entity_instance)
+
+
+@get_orm_entity.register(BackendUser)
+def _(backent_entity_instance):
+    return users.User.from_backend_entity(backent_entity_instance)
