@@ -22,7 +22,7 @@ class DeserializationException(AiidaException):
     pass
 
 
-LATEST_MIGRATION = '0033_replace_text_field_with_json_field'
+LATEST_MIGRATION = '0034_attributes_extras_json'
 
 
 def _update_schema_version(version, apps, schema_editor):

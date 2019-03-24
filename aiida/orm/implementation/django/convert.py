@@ -23,7 +23,8 @@ except ImportError:  # Python2
 # pylint: disable=cyclic-import
 
 from aiida.backends.djsite.db import models
-from aiida.orm.implementation.django import dummy_model as dummy_models
+# from aiida.orm.implementation.django import dummy_model as dummy_models
+import aiida.backends.djsite.db.models as djmodels
 
 __all__ = ('get_backend_entity',)
 
@@ -97,7 +98,7 @@ def _(dbmodel, backend):
     return logs.DjangoLog.from_dbmodel(dbmodel, backend)
 
 
-@get_backend_entity.register(dummy_models.DbUser)
+@get_backend_entity.register(djmodels.DbUser.sa)
 def _(dbmodel, backend):
     """
     get_backend_entity for DummyModel DbUser.
@@ -118,7 +119,7 @@ def _(dbmodel, backend):
     return users.DjangoUser.from_dbmodel(djuser_instance, backend)
 
 
-@get_backend_entity.register(dummy_models.DbGroup)
+@get_backend_entity.register(djmodels.DbGroup.sa)
 def _(dbmodel, backend):
     """
     get_backend_entity for DummyModel DbGroup.
@@ -137,7 +138,7 @@ def _(dbmodel, backend):
     return groups.DjangoGroup.from_dbmodel(djgroup_instance, backend)
 
 
-@get_backend_entity.register(dummy_models.DbComputer)
+@get_backend_entity.register(djmodels.DbComputer.sa)
 def _(dbmodel, backend):
     """
     get_backend_entity for DummyModel DbComputer.
@@ -153,11 +154,11 @@ def _(dbmodel, backend):
         transport_type=dbmodel.transport_type,
         scheduler_type=dbmodel.scheduler_type,
         transport_params=dbmodel.transport_params,
-        metadata=dbmodel._metadata)  # pylint: disable=protected-access
+        metadata=dbmodel.metadata)  # pylint: disable=protected-access
     return computers.DjangoComputer.from_dbmodel(djcomputer_instance, backend)
 
 
-@get_backend_entity.register(dummy_models.DbNode)
+@get_backend_entity.register(djmodels.DbNode.sa)
 def _(dbmodel, backend):
     """
     get_backend_entity for DummyModel DbNode.
@@ -181,7 +182,7 @@ def _(dbmodel, backend):
     return nodes.DjangoNode.from_dbmodel(djnode_instance, backend)
 
 
-@get_backend_entity.register(dummy_models.DbAuthInfo)
+@get_backend_entity.register(djmodels.DbAuthInfo.sa)
 def _(dbmodel, backend):
     """
     get_backend_entity for DummyModel DbAuthInfo.
@@ -192,14 +193,14 @@ def _(dbmodel, backend):
         id=dbmodel.id,
         aiidauser_id=dbmodel.aiidauser_id,
         dbcomputer_id=dbmodel.dbcomputer_id,
-        metadata=dbmodel._metadata,  # pylint: disable=protected-access
+        metadata=dbmodel.metadata,  # pylint: disable=protected-access
         auth_params=dbmodel.auth_params,
         enabled=dbmodel.enabled,
     )
     return authinfos.DjangoAuthInfo.from_dbmodel(djauthinfo_instance, backend)
 
 
-@get_backend_entity.register(dummy_models.DbComment)
+@get_backend_entity.register(djmodels.DbComment.sa)
 def _(dbmodel, backend):
     """
     Convert a dbcomment to the backend entity
@@ -216,7 +217,7 @@ def _(dbmodel, backend):
     return comments.DjangoComment.from_dbmodel(djcomment, backend)
 
 
-@get_backend_entity.register(dummy_models.DbLog)
+@get_backend_entity.register(djmodels.DbLog.sa)
 def _(dbmodel, backend):
     """
     Convert a dbcomment to the backend entity
@@ -229,6 +230,6 @@ def _(dbmodel, backend):
         levelname=dbmodel.levelname,
         dbnode_id=dbmodel.dbnode_id,
         message=dbmodel.message,
-        metadata=dbmodel._metadata  # pylint: disable=protected-access
+        metadata=dbmodel.metadata  # pylint: disable=protected-access
     )
     return logs.DjangoLog.from_dbmodel(djlog, backend)

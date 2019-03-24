@@ -30,6 +30,7 @@ from aiida.orm.importexport import import_data, export
 from aiida.backends.tests.utils.configuration import with_temp_dir
 
 
+# class TestSpecificImport():
 class TestSpecificImport(AiidaTestCase):
     """Test specific ex-/import cases"""
 
@@ -74,6 +75,7 @@ class TestSpecificImport(AiidaTestCase):
 
             # Clean the database and verify there are no nodes left
             self.clean_db()
+            self.setup_database()
             self.assertEqual(orm.QueryBuilder().append(orm.Node).count(), 0)
 
             # After importing we should have the original number of nodes again
@@ -137,6 +139,7 @@ class TestSpecificImport(AiidaTestCase):
 
             # Clean the database and verify there are no nodes left
             self.clean_db()
+            self.setup_database()
             self.assertEqual(orm.QueryBuilder().append(orm.Node).count(), 0)
 
             # After importing we should have the original number of nodes again
@@ -175,7 +178,8 @@ class TestSpecificImport(AiidaTestCase):
             self.assertGreater(len(builder.all()), 0)
 
 
-class TestSimple(AiidaTestCase):
+class TestSimple():
+# class TestSimple(AiidaTestCase):
     """Test simple ex-/import cases"""
 
     def setUp(self):
@@ -199,6 +203,7 @@ class TestSimple(AiidaTestCase):
         export(nodes, outfile=filename, silent=True)
         # cleaning:
         self.clean_db()
+        self.setup_database()
         # Importing back the data:
         import_data(filename, silent=True)
         # Checking whether values are preserved:
@@ -236,6 +241,7 @@ class TestSimple(AiidaTestCase):
         export([calc], outfile=filename, silent=True)
 
         self.clean_db()
+        self.setup_database()
 
         # NOTE: it is better to load new nodes by uuid, rather than assuming
         # that they will have the first 3 pks. In fact, a recommended policy in
@@ -355,7 +361,8 @@ class TestSimple(AiidaTestCase):
                         forbidden_licenses=crashing_filter)
 
 
-class TestUsers(AiidaTestCase):
+class TestUsers():
+# class TestUsers(AiidaTestCase):
     """Test ex-/import cases related to Users"""
 
     def setUp(self):
@@ -419,6 +426,7 @@ class TestUsers(AiidaTestCase):
 
         export([sd3], outfile=filename, silent=True)
         self.clean_db()
+        self.setup_database()
         import_data(filename, silent=True)
 
         # Check that the imported nodes are correctly imported and that
@@ -516,7 +524,8 @@ class TestUsers(AiidaTestCase):
             self.assertEqual(orm.load_node(uuid).user.email, manager.get_profile().default_user_email)
 
 
-class TestGroups(AiidaTestCase):
+class TestGroups():
+# class TestGroups(AiidaTestCase):
     """Test ex-/import cases related to Groups"""
 
     def setUp(self):
@@ -667,7 +676,8 @@ class TestGroups(AiidaTestCase):
         self.assertEqual(builder.count(), 2)
 
 
-class TestCalculations(AiidaTestCase):
+# class TestCalculations(AiidaTestCase):
+class TestCalculations():
     """Test ex-/import cases related to Calculations"""
 
     def setUp(self):
@@ -741,7 +751,8 @@ class TestCalculations(AiidaTestCase):
             self.assertEqual(orm.load_node(uuid).value, value)
 
 
-class TestComplex(AiidaTestCase):
+class TestComplex():
+# class TestComplex(AiidaTestCase):
     """Test complex ex-/import cases"""
 
     def setUp(self):
@@ -806,6 +817,7 @@ class TestComplex(AiidaTestCase):
         export([fd1], outfile=filename, silent=True)
 
         self.clean_db()
+        self.setup_database()
 
         import_data(filename, silent=True, ignore_unknown_nodes=True)
 
@@ -920,6 +932,7 @@ class TestComplex(AiidaTestCase):
             export([g] + [n for n in g.nodes], outfile=filename, silent=True)
             # cleaning the DB!
             self.clean_db()
+            self.setup_database()
             # reimporting the data from the file
             import_data(filename, silent=True, ignore_unknown_nodes=True)
             # creating the hash from db content
@@ -929,7 +942,8 @@ class TestComplex(AiidaTestCase):
             self.assertEqual(hash_from_dbcontent, new_hash)
 
 
-class TestComputer(AiidaTestCase):
+class TestComputer():
+# class TestComputer(AiidaTestCase):
     """Test ex-/import cases related to Computers"""
 
     def setUp(self):
@@ -983,6 +997,7 @@ class TestComputer(AiidaTestCase):
 
         # Clean the local database
         self.clean_db()
+        self.setup_database()
 
         # Check that there are no computers
         builder = orm.QueryBuilder()
@@ -1084,6 +1099,7 @@ class TestComputer(AiidaTestCase):
 
         # Clean the local database
         self.clean_db()
+        self.setup_database()
 
         # Check that there are no computers
         builder = orm.QueryBuilder()
@@ -1189,6 +1205,7 @@ class TestComputer(AiidaTestCase):
 
         # Clean the local database
         self.clean_db()
+        self.setup_database()
 
         # Check that there are no computers
         builder = orm.QueryBuilder()
@@ -1258,22 +1275,22 @@ class TestComputer(AiidaTestCase):
 
         # Clean the local database
         self.clean_db()
+        self.setup_database()
         # Import the data
         import_data(filename1, silent=True)
 
         builder = orm.QueryBuilder()
-        builder.append(orm.Computer, project=['transport_params', '_metadata'],
+        builder.append(orm.Computer, project=['transport_params', 'metadata'],
                     tag="comp")
         self.assertEqual(builder.count(), 1, "Expected only one computer")
 
         res = builder.dict()[0]
         self.assertEqual(res['comp']['transport_params'],
-                            comp1_transport_params,
-                            "Not the expected transport parameters "
-                            "were found")
-        self.assertEqual(res['comp']['_metadata'],
-                            comp1_metadata,
-                            "Not the expected metadata were found")
+                         comp1_transport_params,
+                         "Not the expected transport parameters were found")
+        self.assertEqual(res['comp']['metadata'],
+                         comp1_metadata,
+                         "Not the expected metadata were found")
 
     @unittest.skip("Reenable when issue #2426 has been solved (migrate exported files from 0.3 to 0.4)")
     def test_import_of_django_sqla_export_file(self):
@@ -1309,7 +1326,8 @@ class TestComputer(AiidaTestCase):
             self.assertEqual(res['comp']['_metadata'], comp1_metadata)
 
 
-class TestLinks(AiidaTestCase):
+class TestLinks():
+# class TestLinks(AiidaTestCase):
     """Test ex-/import cases related to Links"""
 
     def setUp(self):
@@ -1366,6 +1384,7 @@ class TestLinks(AiidaTestCase):
             tar.add(unpack.abspath, arcname="")
 
         self.clean_db()
+        self.setup_database()
 
         with self.assertRaises(ValueError):
             import_data(filename, silent=True)
@@ -1779,7 +1798,8 @@ class TestLinks(AiidaTestCase):
         self.assertEqual(len(links_in_db), links_count)   # After import
 
 
-class TestCode(AiidaTestCase):
+class TestCode():
+# class TestCode(AiidaTestCase):
     """Test ex-/import cases related to Codes"""
 
     def setUp(self):
@@ -1896,7 +1916,8 @@ class TestCode(AiidaTestCase):
         self.assertEqual(orm.load_node(code_uuid).label, code_label)
 
 
-class TestLogs(AiidaTestCase):
+class TestLogs():
+# class TestLogs(AiidaTestCase):
     """Test ex-/import cases related to Logs"""
 
     def setUp(self):
@@ -2284,7 +2305,8 @@ class TestLogs(AiidaTestCase):
             self.assertIn(log_message, log_msgs)
 
 
-class TestComments(AiidaTestCase):
+class TestComments():
+# class TestComments(AiidaTestCase):
     """Test ex-/import cases related to Comments"""
 
     def setUp(self):
@@ -2849,6 +2871,7 @@ class TestComments(AiidaTestCase):
             self.assertIn(comment_content, self.comments)
 
 
+# class TestExtras():
 class TestExtras(AiidaTestCase):
     """Test ex-/import cases related to Extras"""
 
@@ -3001,7 +3024,8 @@ class TestExtras(AiidaTestCase):
             import_data(self.export_file, silent=True, extras_mode_existing=5)  # wrong type
 
 
-class TestProvenanceRedesign(AiidaTestCase):
+class TestProvenanceRedesign():
+# class TestProvenanceRedesign(AiidaTestCase):
     """ Check changes in database schema after upgrading to v0.4 (Provenance Redesign)
     This includes all migrations from "base_data_plugin_type_string" (django: 0008)
     until "dbgroup_type_string_change_content" (django: 0022), both included.
