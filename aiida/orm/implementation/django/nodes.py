@@ -34,8 +34,8 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
     # pylint: disable=too-many-public-methods
 
     MODEL_CLASS = models.DbNode
-    ATTRIBUTE_CLASS = models.DbAttribute
-    EXTRA_CLASS = models.DbExtra
+    # ATTRIBUTE_CLASS = models.DbAttribute
+    # EXTRA_CLASS = models.DbExtra
     LINK_CLASS = models.DbLink
 
     def __init__(self,
@@ -155,10 +155,16 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
         :return: the value of the attribute
         :raises AttributeError: if the attribute does not exist
         """
+        # try:
+        #     return self.ATTRIBUTE_CLASS.get_value_for_node(dbnode=self.dbmodel, key=key)
+        # except AttributeError:
+        #     raise AttributeError('Attribute `{}` does not exist'.format(key))
+
+        from aiida.orm.implementation.sqlalchemy.utils import get_attr
         try:
-            return self.ATTRIBUTE_CLASS.get_value_for_node(dbnode=self.dbmodel, key=key)
-        except AttributeError:
-            raise AttributeError('Attribute `{}` does not exist'.format(key))
+            return get_attr(self._attributes(), key)
+        except (KeyError, IndexError):
+            raise AttributeError("Attribute '{}' does not exist".format(key))
 
     def get_attributes(self, keys):
         """Return a set of attributes.
@@ -175,7 +181,8 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
         :param key: name of the attribute
         :param value: value of the attribute
         """
-        self.ATTRIBUTE_CLASS.set_value_for_node(self.dbmodel, key, value)
+        # self.ATTRIBUTE_CLASS.set_value_for_node(self.dbmodel, key, value)
+        self.dbmodel.set_attr(key, value)
         self._increment_version_number()
 
     def set_attributes(self, attributes):
@@ -186,7 +193,8 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
         :param attributes: the new attributes to set
         """
         for key, value in attributes.items():
-            self.ATTRIBUTE_CLASS.set_value_for_node(self.dbmodel, key, value)
+            # self.ATTRIBUTE_CLASS.set_value_for_node(self.dbmodel, key, value)
+            self.dbmodel.set_attr(key, value)
         self._increment_version_number()
 
     def reset_attributes(self, attributes):
@@ -196,7 +204,8 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
 
         :param attributes: the new attributes to set
         """
-        self.ATTRIBUTE_CLASS.reset_values_for_node(self.dbmodel, attributes)
+        self.dbmodel.reset_attributes(attributes)
+        # self.ATTRIBUTE_CLASS.reset_values_for_node(self.dbmodel, attributes)
         self._increment_version_number()
 
     def delete_attribute(self, key):
@@ -205,10 +214,15 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
         :param key: name of the attribute
         :raises AttributeError: if the attribute does not exist
         """
-        if not self.ATTRIBUTE_CLASS.has_key(self.dbmodel, key):
-            raise AttributeError('Attribute `{}` does not exist'.format(key))
+        # if not self.ATTRIBUTE_CLASS.has_key(self.dbmodel, key):
+        #     raise AttributeError('Attribute `{}` does not exist'.format(key))
+        #
+        # self.ATTRIBUTE_CLASS.del_value_for_node(self.dbmodel, key)
 
-        self.ATTRIBUTE_CLASS.del_value_for_node(self.dbmodel, key)
+        # ##########################################
+        # Check if i should increment version number
+        # ##########################################
+        self._dbmodel.del_attr(key)
 
     def delete_attributes(self, keys):
         """Delete multiple attributes.
@@ -248,10 +262,16 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
         :return: the value of the extra
         :raises AttributeError: if the extra does not exist
         """
+        # try:
+        #     return self.EXTRA_CLASS.get_value_for_node(dbnode=self.dbmodel, key=key)
+        # except AttributeError:
+        #     raise AttributeError('Extra `{}` does not exist'.format(key))
+        from aiida.orm.implementation.sqlalchemy.utils import get_attr
+
         try:
-            return self.EXTRA_CLASS.get_value_for_node(dbnode=self.dbmodel, key=key)
-        except AttributeError:
-            raise AttributeError('Extra `{}` does not exist'.format(key))
+            return get_attr(self._extras(), key)
+        except (KeyError, AttributeError):
+            raise AttributeError("DbExtra {} does not exist".format(key))
 
     def get_extras(self, keys):
         """Return a set of extras.
@@ -269,7 +289,8 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
         :param value: value of the extra
         :param increase_version: boolean, if True will increase the node version upon successfully setting the extra
         """
-        self.EXTRA_CLASS.set_value_for_node(self.dbmodel, key, value)
+        # self.EXTRA_CLASS.set_value_for_node(self.dbmodel, key, value)
+        self._dbnode.set_extra(key, value)
         if increase_version:
             self._increment_version_number()
 
@@ -280,9 +301,10 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
 
         :param extras: the new extras to set
         """
-        for key, value in extras.items():
-            self.EXTRA_CLASS.set_value_for_node(self.dbmodel, key, value)
-        self._increment_version_number()
+        raise NotImplementedError
+        # for key, value in extras.items():
+        #     self.EXTRA_CLASS.set_value_for_node(self.dbmodel, key, value)
+        # self._increment_version_number()
 
     def reset_extras(self, extras):
         """Reset the extras.
@@ -291,7 +313,9 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
 
         :param extras: the new extras to set
         """
-        raise NotImplementedError
+        # raise NotImplementedError
+        self.dbmodel.reset_extras(extras)
+        self._increment_version_number_db()
 
     def delete_extra(self, key):
         """Delete an extra.
@@ -299,10 +323,12 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
         :param key: name of the extra
         :raises AttributeError: if the extra does not exist
         """
-        if not self.EXTRA_CLASS.has_key(self.dbmodel, key):
-            raise AttributeError('Extra `{}` does not exist'.format(key))
-
-        self.EXTRA_CLASS.del_value_for_node(self.dbmodel, key)
+        # if not self.EXTRA_CLASS.has_key(self.dbmodel, key):
+        #     raise AttributeError('Extra `{}` does not exist'.format(key))
+        #
+        # self.EXTRA_CLASS.del_value_for_node(self.dbmodel, key)
+        self.dbmodel.del_extra(key)
+        self._increment_version_number_db()
 
     def delete_extras(self, keys):
         """Delete multiple extras.
@@ -324,8 +350,12 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
 
         :return: an iterator with extra key value pairs
         """
-        for key, value in self._dbmodel.extras.items():
-            yield key, value
+        # for key, value in self._dbmodel.extras.items():
+        #     yield key, value
+        extras = self.dbmodel.extras
+        if extras is None:
+            return iter(dict().items())
+        return None
 
     def extras_keys(self):
         """Return an iterator over the extras keys.
@@ -390,7 +420,7 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
                 self.dbmodel.save()
 
                 if attributes:
-                    self.ATTRIBUTE_CLASS.reset_values_for_node(self.dbmodel, attributes, with_transaction=False)
+                    self.dbmodel.attributes = attributes
 
                 if links:
                     for link_triple in links:
@@ -400,8 +430,19 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
 
     def _increment_version_number(self):
         """Increment the node version number of this node by one directly in the database."""
-        self._dbmodel.nodeversion = self.version + 1
-        self._dbmodel.save()
+        self.dbmodel.nodeversion = self.version + 1
+        self.dbmodel.save()
+
+    def _attributes(self):
+        self._ensure_model_uptodate(['attributes'])
+        return self.dbmodel.attributes
+
+    def _extras(self):
+        self._ensure_model_uptodate(['extras'])
+        return self.dbmodel.extras
+
+    def _ensure_model_uptodate(self, attribute_names=None):
+        pass
 
 
 class DjangoNodeCollection(BackendNodeCollection):

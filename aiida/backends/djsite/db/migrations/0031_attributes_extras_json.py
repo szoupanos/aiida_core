@@ -41,7 +41,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='dbnode',
             name='attributes',
-            field=django.contrib.postgres.fields.jsonb.JSONField(default=None),
+            field=django.contrib.postgres.fields.jsonb.JSONField(default=None, null=True),
         ),
         # ##############################################################
         # Migrate the data from the DbAttribute table to the JSONB field
@@ -65,8 +65,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='dbnode',
             name='extras',
-            field=django.contrib.postgres.fields.jsonb.JSONField(default=None),
-        ),
+            field=django.contrib.postgres.fields.jsonb.JSONField(default=None, null=True)),
         # Delete the binding of Node-Extra
         migrations.AlterUniqueTogether(
             name='dbextra',
