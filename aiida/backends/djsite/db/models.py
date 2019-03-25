@@ -24,7 +24,7 @@ from django.contrib.postgres.fields import JSONField
 
 from aiida.common import timezone
 from aiida.common.utils import get_new_uuid
-from aiida.common.exceptions import (ConfigurationError, DbContentError)
+from aiida.common.exceptions import (ConfigurationError, DbContentError, AiidaException)
 from aiida.backends.djsite.settings.settings import AUTH_USER_MODEL
 import aiida.backends.djsite.db.migrations as migrations
 from aiida.backends.utils import AIIDA_ATTRIBUTE_SEP
@@ -177,7 +177,7 @@ class DbNode(m.Model):
     public = m.BooleanField(default=False)
 
     # JSON Attributes
-    attributes = JSONField(default=None, null=True)
+    attributes = JSONField(default=None, null=True, encoder=dumps_json)
     # JSON Extras
     extras = JSONField(default=None, null=True)
 
@@ -198,8 +198,22 @@ class DbNode(m.Model):
         DbNode._set_attr(self.attributes, key, value)
         self.save()
 
+    def reset_attributes(self, attributes):
+        self.attributes = dict()
+        self.set_attributes(attributes)
+
+    def set_attributes(self, attributes):
+        for key, value in attributes.items():
+            DbNode._set_attr(self.attributes, key, value)
+        self.save()
+
     def set_extra(self, key, value):
         DbNode._set_attr(self.extras, key, value)
+        self.save()
+
+    def set_extras(self, extras):
+        for key, value in extras.items():
+            DbNode._set_attr(self.extras, key, value)
         self.save()
 
     def reset_extras(self, new_extras):
@@ -291,8 +305,6 @@ attrdatatype_choice = (
     ('dict', 'dict'),
     ('list', 'list'),
     ('none', 'none'))
-
-from aiida.common.exceptions import AiidaException
 
 
 class DeserializationException(AiidaException):

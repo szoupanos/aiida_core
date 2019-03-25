@@ -26,7 +26,7 @@ from sqlalchemy.sql.expression import cast
 from aiida.orm.implementation.querybuilder import BackendQueryBuilder
 from aiida.common.exceptions import InputValidationError
 from aiida.orm.implementation.django import dummy_model
-from aiida.backends.djsite.db.models import DbAttribute, DbExtra, ObjectDoesNotExist
+# from aiida.backends.djsite.db.models import DbAttribute, DbExtra, ObjectDoesNotExist
 
 
 class DjangoQueryBuilder(BackendQueryBuilder):

@@ -51,7 +51,7 @@ class TestNodeIsStorable(AiidaTestCase):
 
         # These below should be allowed instead
         data = orm.Data()
-        data.store()
+        data.storTestNodeBasice()
 
         calc = orm.CalculationNode()
         calc.store()
@@ -487,14 +487,14 @@ class TestNodeBasic(AiidaTestCase):
         a = orm.Data()
         a.set_attribute('object', object(), clean=False)
 
-        # django raises ValueError
+        # django raises TypeError
         # sqlalchemy raises StatementError
-        with self.assertRaises((ValueError, StatementError)):
+        with self.assertRaises((TypeError, StatementError)):
             a.store()
 
         b = orm.Data()
         b.set_attribute('object_list', [object(), object()], clean=False)
-        with self.assertRaises((ValueError, StatementError)):
+        with self.assertRaises((TypeError, StatementError)):
             # objects are not json-serializable
             b.store()
 
