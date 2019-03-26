@@ -13,7 +13,10 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import six
+import datetime
+import re
 
+from dateutil import parser
 from aiida.backends import settings
 from aiida.backends.profile import load_profile, BACKEND_SQLA, BACKEND_DJANGO
 from aiida.common.exceptions import ConfigurationError, NotExistent, InvalidOperation
@@ -179,3 +182,41 @@ def delete_nodes_and_connections(pks):
         raise Exception("unknown backend {}".format(settings.BACKEND))
 
     delete_nodes_backend(pks)
+
+
+def datetime_to_isoformat(v):
+    """
+    Transforms all datetime object into isoformat and then returns the final object.
+    """
+    if isinstance(v, list):
+        return [datetime_to_isoformat(_) for _ in v]
+    elif isinstance(v, dict):
+        return dict((key, datetime_to_isoformat(val)) for key, val in v.items())
+    elif isinstance(v, datetime.datetime):
+        return v.isoformat()
+    return v
+
+
+date_reg = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+(\+\d{2}:\d{2})?$')
+
+
+def isoformat_to_datetime(d):
+    """
+    Parses each basestring as a datetime object and if it suceeds, converts it.
+    """
+    if isinstance(d, list):
+        for i, val in enumerate(d):
+            d[i] = isoformat_to_datetime(val)
+        return d
+    elif isinstance(d, dict):
+        for k, v in d.items():
+            d[k] = isoformat_to_datetime(v)
+        return d
+    elif isinstance(d, six.string_types):
+        if date_reg.match(d):
+            try:
+                return parser.parse(d)
+            except (ValueError, TypeError):
+                return d
+        return d
+    return d

@@ -157,7 +157,7 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
         :raises AttributeError: if the attribute does not exist
         """
         try:
-            return gen_utils.get_attr(self.dbmodel.attributes, key)
+            return gen_utils.get_attr(self.dbmodel.get_attributes(), key)
         except (KeyError, IndexError):
             raise AttributeError("Attribute '{}' does not exist".format(key))
 
@@ -176,7 +176,7 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
         :param key: name of the attribute
         :param value: value of the attribute
         """
-        self.dbmodel.set_attr(key, value)
+        self.dbmodel.set_attribute(key, value)
         self._increment_version_number()
 
     def set_attributes(self, attributes):
@@ -186,10 +186,8 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
 
         :param attributes: the new attributes to set
         """
-        print("set_attributes")
         for key, value in attributes.items():
-            # self.ATTRIBUTE_CLASS.set_value_for_node(self.dbmodel, key, value)
-            self.dbmodel.set_attr(key, value)
+            self.dbmodel.set_attribute(key, value)
         self._increment_version_number()
 
     def reset_attributes(self, attributes):
@@ -200,7 +198,6 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
         :param attributes: the new attributes to set
         """
         self.dbmodel.reset_attributes(attributes)
-        # self.ATTRIBUTE_CLASS.reset_values_for_node(self.dbmodel, attributes)
         self._increment_version_number()
 
     def delete_attribute(self, key):
@@ -217,7 +214,7 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
         # ##########################################
         # Check if i should increment version number
         # ##########################################
-        self._dbmodel.del_attr(key)
+        self.dbmodel.del_attribute(key)
 
     def delete_attributes(self, keys):
         """Delete multiple attributes.
@@ -399,7 +396,7 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
 
                 if attributes:
                     for key, value in attributes.items():
-                        self.dbmodel.set_attr(key, value)
+                        self.dbmodel.set_attribute(key, value)
 
                 if links:
                     for link_triple in links:

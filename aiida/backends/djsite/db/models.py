@@ -29,6 +29,8 @@ from aiida.backends.djsite.settings.settings import AUTH_USER_MODEL
 import aiida.backends.djsite.db.migrations as migrations
 from aiida.backends.utils import AIIDA_ATTRIBUTE_SEP
 
+from aiida.backends.utils import datetime_to_isoformat, isoformat_to_datetime
+
 # This variable identifies the schema version of this file.
 # Every time you change the schema below in *ANY* way, REMEMBER TO CHANGE
 # the version here in the migration file and update migrations/__init__.py.
@@ -177,7 +179,7 @@ class DbNode(m.Model):
     public = m.BooleanField(default=False)
 
     # JSON Attributes
-    attributes = JSONField(default=None, null=True, encoder=dumps_json)
+    attributes = JSONField(default=None, null=True)
     # JSON Extras
     extras = JSONField(default=None, null=True)
 
@@ -194,7 +196,7 @@ class DbNode(m.Model):
         if self.extras is None:
             self.extras = dict()
 
-    def set_attr(self, key, value):
+    def set_attribute(self, key, value):
         DbNode._set_attr(self.attributes, key, value)
         self.save()
 
@@ -221,7 +223,7 @@ class DbNode(m.Model):
         self.extras.update(new_extras)
         self.save()
 
-    def del_attr(self, key):
+    def del_attribute(self, key):
         DbNode._del_attr(self.attributes, key)
         self.save()
 
@@ -229,11 +231,18 @@ class DbNode(m.Model):
         DbNode._del_attr(self.extras, key)
         self.save()
 
+    def get_attributes(self):
+        return isoformat_to_datetime(self.attributes)
+
+    def get_extras(self):
+        return isoformat_to_datetime(self.extras)
+
     @ staticmethod
     def _set_attr(d, key, value):
         if '.' in key:
             raise ValueError("We don't know how to treat key with dot in it yet")
-        d[key] = value
+        # This is important in order to properly handle datetime objects
+        d[key] = datetime_to_isoformat(value)
 
     @ staticmethod
     def _del_attr(d, key):

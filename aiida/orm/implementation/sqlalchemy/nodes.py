@@ -177,7 +177,7 @@ class SqlaNode(entities.SqlaModelEntity[models.DbNode], BackendNode):
         :param value: value of the attribute
         """
         try:
-            self.dbmodel.set_attr(key, value)
+            self.dbmodel.set_attribute(key, value)
             self._increment_version_number()
         except Exception:  # pylint: disable=bare-except
             session = get_scoped_session()
@@ -221,7 +221,7 @@ class SqlaNode(entities.SqlaModelEntity[models.DbNode], BackendNode):
         :raises AttributeError: if the attribute does not exist
         """
         try:
-            self._dbmodel.del_attr(key)
+            self._dbmodel.del_attribute(key)
             self._increment_version_number()
         except Exception:  # pylint: disable=bare-except
             session = get_scoped_session()
