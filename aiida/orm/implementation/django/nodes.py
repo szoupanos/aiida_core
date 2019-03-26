@@ -296,9 +296,8 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
 
         :param extras: the new extras to set
         """
-        # raise NotImplementedError
         self.dbmodel.reset_extras(extras)
-        self._increment_version_number_db()
+        self._increment_version_number()
 
     def delete_extra(self, key):
         """Delete an extra.
@@ -307,7 +306,7 @@ class DjangoNode(entities.DjangoModelEntity[models.DbNode], BackendNode):
         :raises AttributeError: if the extra does not exist
         """
         self.dbmodel.del_extra(key)
-        self._increment_version_number_db()
+        self._increment_version_number()
 
     def delete_extras(self, keys):
         """Delete multiple extras.

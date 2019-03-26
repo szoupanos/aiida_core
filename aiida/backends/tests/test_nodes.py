@@ -51,7 +51,7 @@ class TestNodeIsStorable(AiidaTestCase):
 
         # These below should be allowed instead
         data = orm.Data()
-        data.storTestNodeBasice()
+        data.store()
 
         calc = orm.CalculationNode()
         calc.store()
