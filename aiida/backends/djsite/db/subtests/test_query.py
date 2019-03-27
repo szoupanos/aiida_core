@@ -11,10 +11,11 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 from aiida.backends.testbase import AiidaTestCase
-
+from unittest import skip
 
 class TestQueryBuilderDjango(AiidaTestCase):
 
+    @skip("To see if this is still valid under Django JSONB")
     def test_clsf_django(self):
         """
         This tests the classifications of the QueryBuilder u. the django backend.

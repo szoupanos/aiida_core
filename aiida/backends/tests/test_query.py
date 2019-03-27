@@ -600,7 +600,7 @@ class TestQueryBuilderCornerCases(AiidaTestCase):
     def test_computer_json(self):  # pylint: disable=no-self-use
         """
         In this test we check the correct behavior of QueryBuilder when
-        retrieving the _metadata and the transport_params with no content.
+        retrieving the metadata and the transport_params with no content.
         Note that they are in JSON format in both backends. Forcing the
         decoding of a None value leads to an exception (this was the case
         under Django).
@@ -621,7 +621,7 @@ class TestQueryBuilderCornerCases(AiidaTestCase):
         # a JSON field (in both backends).
         qb = orm.QueryBuilder()
         qb.append(orm.CalculationNode, project=['id'], tag='calc')
-        qb.append(orm.Computer, project=['id', '_metadata'], outerjoin=True, with_node='calc')
+        qb.append(orm.Computer, project=['id', 'metadata'], outerjoin=True, with_node='calc')
         qb.all()
 
 
@@ -717,6 +717,7 @@ class TestAttributes(AiidaTestCase):
 class QueryBuilderDateTimeAttribute(AiidaTestCase):
 
     @unittest.skipIf(settings.BACKEND == u'sqlalchemy', "SQLA doesn't have full datetime support in attributes")
+    @unittest.skipIf(settings.BACKEND == u'django', "Django JSONB doesn't have full datetime support in attributes")
     def test_date(self):
         from aiida.common import timezone
         from datetime import timedelta

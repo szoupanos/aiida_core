@@ -233,9 +233,11 @@ class DbNode(m.Model):
 
     def get_attributes(self):
         return isoformat_to_datetime(self.attributes)
+        # return self.attributes
 
     def get_extras(self):
         return isoformat_to_datetime(self.extras)
+        # return self.extras
 
     @ staticmethod
     def _set_attr(d, key, value):
@@ -263,7 +265,7 @@ class DbNode(m.Model):
         :param invalid_result: The value to be returned if the node type is
             not recognized.
         """
-        thistype = self.type
+        thistype = self.node_type
         # Fix for base class
         if thistype == "":
             thistype = "node.Node."

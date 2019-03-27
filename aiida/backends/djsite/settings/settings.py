@@ -145,4 +145,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'aiida.backends.djsite.db',
+    'aldjemy',
 ]
+
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, JSON
+# from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.sql.sqltypes import JSON
+
+ALDJEMY_DATA_TYPES = {
+    'UUIDField': lambda field: UUID(),
+    'JSONField': lambda field: JSONB(),
+}

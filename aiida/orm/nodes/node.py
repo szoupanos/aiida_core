@@ -1081,8 +1081,6 @@ class Node(Entity):
 
     def _store_from_cache(self, cache_node, with_transaction):
         """Store this node from an existing cache node."""
-        print("_store_from_cache")
-
         from aiida.orm.utils.mixins import Sealable
         assert self.node_type == cache_node.node_type
 
