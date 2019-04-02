@@ -1180,17 +1180,19 @@ class QueryBuilder(object):
 
         for projectable_spec in items_to_project:
             for projectable_entity_name, extraspec in projectable_spec.items():
+                entity_names = list()
                 if projectable_entity_name == '**':
                     # Need to expand
-                    entity_names = self._impl.modify_expansions(
-                        alias, [str(c).replace(alias.__table__.name + '.', '') for c in alias.__table__.columns])
+                    entity_names.extend(self._impl.modify_expansions(
+                        alias, [str(c).replace(alias.__table__.name + '.', '') for c in alias.__table__.columns]))
                     # ~ for s in ('attributes', 'extras'):
                     # ~ try:
                     # ~ entity_names.remove(s)
                     # ~ except ValueError:
                     # ~ pass
                 else:
-                    entity_names = [projectable_entity_name]
+                    entity_names.extend(self._impl.modify_expansions(alias, [projectable_entity_name]))
+
                 for entity_name in entity_names:
                     self._add_to_projections(alias, entity_name, **extraspec)
 

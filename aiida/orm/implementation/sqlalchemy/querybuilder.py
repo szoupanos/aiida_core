@@ -125,17 +125,14 @@ class SqlaQueryBuilder(BackendQueryBuilder):
 
     def modify_expansions(self, alias, expansions):
         """
-        For sqlalchemy, there are no additional expansions for now, so
-        I am returning an empty list
+        In SQLA, the metadata should be changed to _metadata to be in-line with the database schema
         """
         # pylint: disable=protected-access
-        if issubclass(alias._sa_class_manager.class_, self.Computer) or \
-            issubclass(alias._sa_class_manager.class_, self.Log):
-            try:
+        if (hasattr(alias, '_sa_class_manager') and (issubclass(alias._sa_class_manager.class_, self.Computer) or
+                                                     issubclass(alias._sa_class_manager.class_, self.Log))):
+            if 'metadata' in expansions:
                 expansions.remove('metadata')
                 expansions.append('_metadata')
-            except KeyError:
-                pass
 
         return expansions
 

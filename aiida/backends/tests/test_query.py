@@ -913,6 +913,53 @@ class QueryBuilderJoinsTests(AiidaTestCase):
 
         self.assertEqual(qb.count(), 1, "The expected user that owns the " "selected group was not found.")
 
+    def test_joins_group_node(self):
+        """
+        This test checks that the querying for the nodes that belong to a group works correctly (using QueryBuilder).
+        This is important for the Django backend with the use of aldjemy for the Django to SQLA schema translation.
+        Since this is not backend specific test (even if it is mainly used to test the querying of Django backend
+        with QueryBuilder), we keep it at the general tests (ran by both backends).
+        """
+        new_email = "newuser@new.n2"
+        user = orm.User(email=new_email).store()
+
+        # Create a group that belongs to that user
+        group = orm.Group(label="node_group_2")
+        group.user = user
+        group.store()
+
+        # Create nodes and add them to the created group
+        n1 = orm.Data()
+        n1.label = 'node1'
+        n1.set_attribute('foo', ['hello', 'goodbye'])
+        n1.store()
+
+        n2 = orm.CalculationNode()
+        n2.label = 'node2'
+        n2.set_attribute('foo', 1)
+        n2.store()
+
+        n3 = orm.Data()
+        n3.label = 'node3'
+        n3.set_attribute('foo', 1.0000)  # Stored as fval
+        n3.store()
+
+        n4 = orm.CalculationNode()
+        n4.label = 'node4'
+        n4.set_attribute('foo', 'bar')
+        n4.store()
+
+        group.add_nodes([n1, n2, n3, n4])
+
+        # Check that the nodes are in the group
+        qb = orm.QueryBuilder()
+        qb.append(orm.Node, tag='node', project=['id'])
+        qb.append(orm.Group, with_node='node', filters={'id': {'==': group.id}})
+        self.assertEqual(qb.count(), 4, "There should be 4 nodes in the group")
+        id_res = [_ for [_] in qb.all()]
+        for curr_id in [n1.id, n2.id, n3.id, n4.id]:
+            self.assertIn(curr_id, id_res)
+
 
 class QueryBuilderPath(AiidaTestCase):
 

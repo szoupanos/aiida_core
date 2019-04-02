@@ -47,23 +47,24 @@ class DjangoQueryManager(AbstractQueryManager):
             an integer with the number of nodes created that day.
         """
         import sqlalchemy as sa
-        from aiida.orm.implementation.django import dummy_model
+        import aiida.backends.djsite.db.models as djmodels
+        from aiida.orm.implementation.django.querybuilder import DjangoQueryBuilder
 
         # Get the session (uses internally aldjemy - so, sqlalchemy) also for the Djsite backend
-        s = dummy_model.get_aldjemy_session()
+        s = DjangoQueryBuilder.get_session()
 
         retdict = {}
 
-        total_query = s.query(dummy_model.DbNode)
-        types_query = s.query(dummy_model.DbNode.node_type.label('typestring'),
-                              sa.func.count(dummy_model.DbNode.id))
-        stat_query = s.query(sa.func.date_trunc('day', dummy_model.DbNode.ctime).label('cday'),
-                             sa.func.count(dummy_model.DbNode.id))
+        total_query = s.query(djmodels.DbNode.sa)
+        types_query = s.query(djmodels.DbNode.sa.node_type.label('typestring'),
+                              sa.func.count(djmodels.DbNode.sa.id))
+        stat_query = s.query(sa.func.date_trunc('day', djmodels.DbNode.sa.ctime).label('cday'),
+                             sa.func.count(djmodels.DbNode.sa.id))
 
         if user_pk is not None:
-            total_query = total_query.filter(dummy_model.DbNode.user_id == user_pk)
-            types_query = types_query.filter(dummy_model.DbNode.user_id == user_pk)
-            stat_query = stat_query.filter(dummy_model.DbNode.user_id == user_pk)
+            total_query = total_query.filter(djmodels.DbNode.sa.user_id == user_pk)
+            types_query = types_query.filter(djmodels.DbNode.sa.user_id == user_pk)
+            stat_query = stat_query.filter(djmodels.DbNode.sa.user_id == user_pk)
 
         # Total number of nodes
         retdict["total"] = total_query.count()
