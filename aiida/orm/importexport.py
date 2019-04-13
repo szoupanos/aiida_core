@@ -2099,6 +2099,13 @@ def serialize_dict(datadict, remove_fields=[], rename_fields={},
         return ret_dict
 
 
+fields_to_export = {
+    'aiida.backends.djsite.db.models.DbNode':
+        ['description', 'public', 'nodeversion', 'uuid', 'mtime', 'user',
+         'ctime', 'dbcomputer', 'label', 'type'],
+}
+
+
 def fill_in_query(partial_query, originating_entity_str, current_entity_str,
                   tag_suffixes=[], entity_separator="_"):
     """
@@ -2177,6 +2184,316 @@ def fill_in_query(partial_query, originating_entity_str, current_entity_str,
                       new_tag_suffixes)
 
 
+def node_export_set_expansion(to_be_visited, input_forward=False, create_reversed=True, return_reversed=False,
+                           call_reversed=False):
+    """
+    This function implements the set expansion rules of the export function. Given a set of nodes, the set is
+    expanded based on the rules that are described at issue #1102
+
+    Link type	Tail & head of the link	Link traversal	Export direct successor / direct predecessor
+    INPUT	(Data, ProcessNode)                             Forward	No	Reversed	Yes
+    CREATE	(ProcessNode, Data)                             Forward	Yes	Reversed	Yes
+    RETURN	(ProcessNode, Data)                             Forward	Yes	Reversed	No
+    CALL	(ProcessNode [caller], ProcessNode [called])    Forward	Yes Reversed	No
+
+    :param to_be_visited: The initial set of nodes that should be expanded
+    :param input_forward: Override the input forward rule
+    :param create_reversed:  Override the create reversed rule
+    :param return_reversed: Override the return reversed rule
+    :param call_reversed: Override the call reversed rule
+    :return: The enriched set of nodes
+    """
+    from aiida.orm.nodes.data import Data
+    from aiida.orm.nodes.process import ProcessNode
+    from aiida.common.links import LinkType
+    from aiida.orm.querybuilder import QueryBuilder
+
+    # The set that contains the nodes ids of the nodes that should be exported
+    to_be_exported = set()
+
+    # We repeat until there are no further nodes to be visited
+    while to_be_visited[ProcessNode] or to_be_visited[Data]:
+        # If is is a calculation node
+        if to_be_visited[ProcessNode]:
+            curr_node_id = to_be_visited[ProcessNode].pop()
+            # If it is already visited continue to the next node
+            if curr_node_id in to_be_exported:
+                continue
+            # Otherwise say that it is a node to be exported
+            else:
+                to_be_exported.add(curr_node_id)
+
+            # INPUT(Data, ProcessNode) - Reversed
+            qb = QueryBuilder()
+            qb.append(Data, tag='predecessor', project=['id'])
+            qb.append(ProcessNode, with_incoming='predecessor',
+                      filters={'id': {'==': curr_node_id}},
+                      edge_filters={'type': {'in': [LinkType.INPUT_CALC.value, LinkType.INPUT_WORK.value]}})
+            res = {_[0] for _ in qb.all()}
+            to_be_visited[Data].update(res - to_be_exported)
+
+            # CREATE/RETURN(ProcessNode, Data) - Forward
+            qb = QueryBuilder()
+            qb.append(ProcessNode, tag='predecessor',
+                      filters={'id': {'==': curr_node_id}})
+            qb.append(Data, with_incoming='predecessor', project=['id'],
+                      edge_filters={
+                          'type': {
+                              'in': [LinkType.CREATE.value,
+                                     LinkType.RETURN.value]}})
+            res = {_[0] for _ in qb.all()}
+            to_be_visited[Data].update(res - to_be_exported)
+
+            # CALL(ProcessNode, ProcessNode) - Forward
+            qb = QueryBuilder()
+            qb.append(ProcessNode, tag='predecessor',
+                      filters={'id': {'==': curr_node_id}})
+            qb.append(ProcessNode, with_incoming='predecessor', project=['id'],
+                      edge_filters={'type': {'in': [LinkType.CALL_CALC.value, LinkType.CALL_WORK.value]}})
+            res = {_[0] for _ in qb.all()}
+            to_be_visited[ProcessNode].update(res - to_be_exported)
+
+            # CALL(ProcessNode, ProcessNode) - Reversed
+            if call_reversed:
+                qb = QueryBuilder()
+                qb.append(ProcessNode, tag='predecessor', project=['id'])
+                qb.append(ProcessNode, with_incoming='predecessor',
+                          filters={'id': {'==': curr_node_id}},
+                          edge_filters={'type': {'in': [LinkType.CALL_CALC.value, LinkType.CALL_WORK.value]}})
+                res = {_[0] for _ in qb.all()}
+                to_be_visited[ProcessNode].update(res - to_be_exported)
+
+        # If it is a Data node
+        else:
+            curr_node_id = to_be_visited[Data].pop()
+            # If it is already visited continue to the next node
+            if curr_node_id in to_be_exported:
+                continue
+            # Otherwise say that it is a node to be exported
+            else:
+                to_be_exported.add(curr_node_id)
+
+            # INPUT(Data, ProcessNode) - Forward
+            if input_forward:
+                qb = QueryBuilder()
+                qb.append(Data, tag='predecessor',
+                          filters={'id': {'==': curr_node_id}})
+                qb.append(ProcessNode, with_incoming='predecessor',
+                          project=['id'],
+                          edge_filters={'type': {'in': [LinkType.INPUT_CALC.value, LinkType.INPUT_WORK.value]}})
+                res = {_[0] for _ in qb.all()}
+                to_be_visited[ProcessNode].update(res - to_be_exported)
+
+            # CREATE(ProcessNode, Data) - Reversed
+            if create_reversed:
+                qb = QueryBuilder()
+                qb.append(ProcessNode, tag='predecessor', project=['id'])
+                qb.append(Data, with_incoming='predecessor',
+                          filters={'id': {'==': curr_node_id}},
+                          edge_filters={
+                              'type': {
+                                  '==': LinkType.CREATE.value}})
+                res = {_[0] for _ in qb.all()}
+                to_be_visited[ProcessNode].update(res - to_be_exported)
+
+            # RETURN(ProcessNode, Data) - Reversed
+            if return_reversed:
+                qb = QueryBuilder()
+                qb.append(ProcessNode, tag='predecessor', project=['id'])
+                qb.append(Data, with_incoming='predecessor',
+                          filters={'id': {'==': curr_node_id}},
+                          edge_filters={
+                              'type': {
+                                  'in': [LinkType.RETURN.value]}})
+                res = {_[0] for _ in qb.all()}
+                to_be_visited[Data].update(res - to_be_exported)
+
+    return to_be_exported
+
+
+def link_extraction(all_nodes_pk, input_forward=False, create_reversed=True, return_reversed=False,
+                    call_reversed=False):
+    """
+    This function returns the links that corresponds to the node set expanded by node_export_set_expansion function.
+    set expansion rules of the export function.
+    The logic is described at issue #1102
+
+    Link type, Tail & head of the link, Link export
+    INPUT, (Data, ProcessNode), Backward, by the ProcessNode node, forward too by the Data node, if the user modifies
+    the default behaviour
+    CREATE, (ProcessNode, Data), Forward, by the ProcessNode node, backward, by the Data node
+    RETURN, (ProcessNode, Data), Forward, by the ProcessNode node
+    CALL, (ProcessNode [caller], ProcessNode [called]), Forward, by the ProcessNode [caller] node. Also backward too by
+    the ProcessNode [called] node, if the user modifies the default behaviour
+
+    :param all_nodes_pk: The nodes that will be exported
+    :param input_forward: Override the input forward rule
+    :param create_reversed:  Override the create reversed rule
+    :param return_reversed: Override the return reversed rule
+    :param call_reversed: Override the call reversed rule
+    :return: The links that should be exported
+    """
+    from aiida.orm.nodes.data import Data
+    from aiida.orm.nodes.process import ProcessNode
+    from aiida.common.links import LinkType
+    from aiida.orm.querybuilder import QueryBuilder
+
+    links_uuid_dict = dict()
+
+    # INPUT (Data, ProcessNode) - Forward, by the ProcessNode node
+    if input_forward:
+        # INPUT (Data, ProcessNode)
+        links_qb = QueryBuilder()
+        links_qb.append(Data,
+                        project=['uuid'], tag='input',
+                        filters={'id': {'in': all_nodes_pk}})
+        links_qb.append(ProcessNode,
+                        project=['uuid'], tag='output',
+                        edge_filters={'type': {'in': [LinkType.INPUT_CALC.value, LinkType.INPUT_WORK.value]}},
+                        edge_project=['label', 'type'], with_incoming='input')
+        for input_uuid, output_uuid, link_label, link_type in links_qb.iterall():
+            val = {
+                'input': str(input_uuid),
+                'output': str(output_uuid),
+                'label': str(link_label),
+                'type': str(link_type)
+            }
+            links_uuid_dict[frozenset(val.items())] = val
+
+    # INPUT (Data, ProcessNode) - Backward, by the ProcessNode node
+    links_qb = QueryBuilder()
+    links_qb.append(Data,
+                    project=['uuid'], tag='input')
+    links_qb.append(ProcessNode,
+                    project=['uuid'], tag='output',
+                    filters={'id': {'in': all_nodes_pk}},
+                    edge_filters={'type': {'in': [LinkType.INPUT_CALC.value, LinkType.INPUT_WORK.value]}},
+                    edge_project=['label', 'type'], with_incoming='input')
+    for input_uuid, output_uuid, link_label, link_type in links_qb.iterall():
+        val = {
+            'input': str(input_uuid),
+            'output': str(output_uuid),
+            'label': str(link_label),
+            'type': str(link_type)
+        }
+        links_uuid_dict[frozenset(val.items())] = val
+
+    # CREATE (ProcessNode, Data) - Forward, by the ProcessNode node
+    links_qb = QueryBuilder()
+    links_qb.append(ProcessNode,
+                    project=['uuid'], tag='input',
+                    filters={'id': {'in': all_nodes_pk}})
+    links_qb.append(Data,
+                    project=['uuid'], tag='output',
+                    edge_filters={'type': {'==': LinkType.CREATE.value}},
+                    edge_project=['label', 'type'], with_incoming='input')
+    for input_uuid, output_uuid, link_label, link_type in links_qb.iterall():
+        val = {
+            'input': str(input_uuid),
+            'output': str(output_uuid),
+            'label': str(link_label),
+            'type': str(link_type)
+        }
+        links_uuid_dict[frozenset(val.items())] = val
+
+    # CREATE (ProcessNode, Data) - Backward, by the Data node
+    if create_reversed:
+        links_qb = QueryBuilder()
+        links_qb.append(ProcessNode,
+                        project=['uuid'], tag='input',
+                        filters={'id': {'in': all_nodes_pk}})
+        links_qb.append(Data,
+                        project=['uuid'], tag='output',
+                        edge_filters={'type': {'==': LinkType.CREATE.value}},
+                        edge_project=['label', 'type'], with_incoming='input')
+        for input_uuid, output_uuid, link_label, link_type in links_qb.iterall():
+            val = {
+                'input': str(input_uuid),
+                'output': str(output_uuid),
+                'label': str(link_label),
+                'type': str(link_type)
+            }
+            links_uuid_dict[frozenset(val.items())] = val
+
+    # RETURN (ProcessNode, Data) - Forward, by the ProcessNode node
+    links_qb = QueryBuilder()
+    links_qb.append(ProcessNode,
+                    project=['uuid'], tag='input',
+                    filters={'id': {'in': all_nodes_pk}})
+    links_qb.append(Data,
+                    project=['uuid'], tag='output',
+                    edge_filters={'type': {'==': LinkType.RETURN.value}},
+                    edge_project=['label', 'type'], with_incoming='input')
+    for input_uuid, output_uuid, link_label, link_type in links_qb.iterall():
+        val = {
+            'input': str(input_uuid),
+            'output': str(output_uuid),
+            'label': str(link_label),
+            'type': str(link_type)
+        }
+        links_uuid_dict[frozenset(val.items())] = val
+
+    # RETURN (ProcessNode, Data) - Backward, by the Data node
+    if return_reversed:
+        links_qb = QueryBuilder()
+        links_qb.append(ProcessNode,
+                        project=['uuid'], tag='input')
+        links_qb.append(Data,
+                        project=['uuid'], tag='output',
+                        filters={'id': {'in': all_nodes_pk}},
+                        edge_filters={'type': {'==': LinkType.RETURN.value}},
+                        edge_project=['label', 'type'], with_incoming='input')
+        for input_uuid, output_uuid, link_label, link_type in links_qb.iterall():
+            val = {
+                'input': str(input_uuid),
+                'output': str(output_uuid),
+                'label': str(link_label),
+                'type': str(link_type)
+            }
+            links_uuid_dict[frozenset(val.items())] = val
+
+    # CALL (ProcessNode [caller], ProcessNode [called]) - Forward, by
+    # the ProcessNode node
+    links_qb = QueryBuilder()
+    links_qb.append(ProcessNode,
+                    project=['uuid'], tag='input',
+                    filters={'id': {'in': all_nodes_pk}})
+    links_qb.append(ProcessNode,
+                    project=['uuid'], tag='output',
+                    edge_filters={'type': {'in': [LinkType.CALL_CALC.value, LinkType.CALL_WORK.value]}},
+                    edge_project=['label', 'type'], with_incoming='input')
+    for input_uuid, output_uuid, link_label, link_type in links_qb.iterall():
+        val = {
+            'input': str(input_uuid),
+            'output': str(output_uuid),
+            'label': str(link_label),
+            'type': str(link_type)
+        }
+        links_uuid_dict[frozenset(val.items())] = val
+
+    # CALL (ProcessNode [caller], ProcessNode [called]) - Backward,
+    # by the ProcessNode [called] node
+    if call_reversed:
+        links_qb = QueryBuilder()
+        links_qb.append(ProcessNode,
+                        project=['uuid'], tag='input')
+        links_qb.append(ProcessNode,
+                        project=['uuid'], tag='output',
+                        filters={'id': {'in': all_nodes_pk}},
+                        edge_filters={'type': {'in': [LinkType.CALL_CALC.value, LinkType.CALL_WORK.value]}},
+                        edge_project=['label', 'type'], with_incoming='input')
+        for input_uuid, output_uuid, link_label, link_type in links_qb.iterall():
+            val = {
+                'input': str(input_uuid),
+                'output': str(output_uuid),
+                'label': str(link_label),
+                'type': str(link_type)
+            }
+            links_uuid_dict[frozenset(val.items())] = val
+
+    return links_uuid_dict.values()
+
+
 def export_tree(what, folder, allowed_licenses=None, forbidden_licenses=None,
                 silent=False, input_forward=False, create_reversed=True,
                 return_reversed=False, call_reversed=False, include_comments=True,
@@ -2211,34 +2528,45 @@ def export_tree(what, folder, allowed_licenses=None, forbidden_licenses=None,
     :raises LicensingException: if any node is licensed under forbidden
     license
     """
-    import os
     import aiida
     from aiida.orm import Node, Data, Group, Log, Comment
     from aiida.orm import ProcessNode
-    from aiida.common.exceptions import ContentNotExistent
     from aiida.common.links import LinkType
     from aiida.common.folders import RepositoryFolder
     from aiida.orm.querybuilder import QueryBuilder
     from aiida.common import json
-    from django.core.exceptions import ImproperlyConfigured
 
     if not silent:
         print("STARTING EXPORT...")
+        print("Current values of the export node set expansion rules")
+        print("input_forward: ", input_forward)
+        print("create_reversed: ", create_reversed)
+        print("return_reversed: ", return_reversed)
+        print("call_reversed: ", call_reversed)
 
     EXPORT_VERSION = '0.4'
 
     all_fields_info, unique_identifiers = get_all_fields_info()
 
-    # The set that contains the nodes ids of the nodes that should be exported
-    to_be_exported = set()
+    # # The set that contains the nodes ids of the nodes that should be exported
+    # to_be_exported = set()
 
-    given_data_entry_ids = set()
-    given_calculation_entry_ids = set()
+    # The dictionary that contains node ids/pks of given nodes. They will be enriched with the ids/pks
+    # of related nodes given a set of rules and arguments.
+    to_be_visited = dict()
+    to_be_visited[ProcessNode] = set()
+    to_be_visited[Data] = set()
+
+
+    # given_data_entry_ids = set()
+    # given_calculation_entry_ids = set()
     given_group_entry_ids = set()
     given_computer_entry_ids = set()
     given_groups = set()
     given_log_entry_ids = set()
     given_comment_entry_ids = set()
+
+
 
     # I store a list of the actual dbnodes
     for entry in what:
@@ -2252,9 +2580,11 @@ def export_tree(what, folder, allowed_licenses=None, forbidden_licenses=None,
             given_groups.add(entry)
         elif issubclass(entry.__class__, Node):
             if issubclass(entry.__class__, Data):
-                given_data_entry_ids.add(entry.pk)
+                # given_data_entry_ids.add(entry.pk)
+                to_be_visited[Data].add(entry.pk)
             elif issubclass(entry.__class__, ProcessNode):
-                given_calculation_entry_ids.add(entry.pk)
+                # given_calculation_entry_ids.add(entry.pk)
+                to_be_visited[ProcessNode].add(entry.pk)
         elif issubclass(entry.__class__, Computer):
             given_computer_entry_ids.add(entry.pk)
         else:
@@ -2265,208 +2595,215 @@ def export_tree(what, folder, allowed_licenses=None, forbidden_licenses=None,
     for group in given_groups:
         for entry in group.nodes:
             if issubclass(entry.__class__, Data):
-                given_data_entry_ids.add(entry.pk)
+                # given_data_entry_ids.add(entry.pk)
+                to_be_visited[Data].add(entry.pk)
             elif issubclass(entry.__class__, ProcessNode):
-                given_calculation_entry_ids.add(entry.pk)
+                # given_calculation_entry_ids.add(entry.pk)
+                to_be_visited[ProcessNode].add(entry.pk)
 
-    # We will iteratively explore the AiiDA graph to find further nodes that
-    # should also be exported.
+    # Search fot the node entities that should be exported based on the set of export rules
+    # and arguments.
+    to_be_exported_node_entry_ids = node_export_set_expansion(to_be_visited, input_forward, create_reversed,
+                                                           return_reversed, call_reversed)
 
-    # We repeat until there are no further nodes to be visited
-    while given_calculation_entry_ids or given_data_entry_ids:
-
-        # If is is a calculation node
-        if given_calculation_entry_ids:
-            curr_node_id = given_calculation_entry_ids.pop()
-            # If it is already visited continue to the next node
-            if curr_node_id in to_be_exported:
-                continue
-            # Otherwise say that it is a node to be exported
-            else:
-                to_be_exported.add(curr_node_id)
-
-            # INPUT(Data, ProcessNode) - Reversed
-            qb = QueryBuilder()
-            qb.append(Data, tag='predecessor', project=['id'])
-            qb.append(ProcessNode, with_incoming='predecessor',
-                      filters={'id': {'==': curr_node_id}},
-                      edge_filters={'type': {'in': [LinkType.INPUT_CALC.value, LinkType.INPUT_WORK.value]}})
-            res = {_[0] for _ in qb.all()}
-            given_data_entry_ids.update(res - to_be_exported)
-
-            # INPUT(Data, ProcessNode) - Forward
-            if input_forward:
-                qb = QueryBuilder()
-                qb.append(Data, tag='predecessor', project=['id'],
-                          filters={'id': {'==': curr_node_id}})
-                qb.append(ProcessNode, with_incoming='predecessor',
-                      edge_filters={'type': {'in': [LinkType.INPUT_CALC.value, LinkType.INPUT_WORK.value]}})
-                res = {_[0] for _ in qb.all()}
-                given_data_entry_ids.update(res - to_be_exported)
-
-            # CREATE/RETURN(ProcessNode, Data) - Forward
-            qb = QueryBuilder()
-            qb.append(ProcessNode, tag='predecessor',
-                      filters={'id': {'==': curr_node_id}})
-            qb.append(Data, with_incoming='predecessor', project=['id'],
-                      edge_filters={
-                          'type': {
-                              'in': [LinkType.CREATE.value,
-                                     LinkType.RETURN.value]}})
-            res = {_[0] for _ in qb.all()}
-            given_data_entry_ids.update(res - to_be_exported)
-
-            # CREATE(ProcessNode, Data) - Reversed
-            if create_reversed:
-                qb = QueryBuilder()
-                qb.append(ProcessNode, tag='predecessor')
-                qb.append(Data, with_incoming='predecessor', project=['id'],
-                          filters={'id': {'==': curr_node_id}},
-                          edge_filters={
-                              'type': {
-                                  'in': [LinkType.CREATE.value]}})
-                res = {_[0] for _ in qb.all()}
-                given_data_entry_ids.update(res - to_be_exported)
-
-            # RETURN(ProcessNode, Data) - Reversed
-            if return_reversed:
-                qb = QueryBuilder()
-                qb.append(ProcessNode, tag='predecessor')
-                qb.append(Data, with_incoming='predecessor', project=['id'],
-                          filters={'id': {'==': curr_node_id}},
-                          edge_filters={
-                              'type': {
-                                  'in': [LinkType.RETURN.value]}})
-                res = {_[0] for _ in qb.all()}
-                given_data_entry_ids.update(res - to_be_exported)
-
-            # CALL(ProcessNode, ProcessNode) - Forward
-            qb = QueryBuilder()
-            qb.append(ProcessNode, tag='predecessor',
-                      filters={'id': {'==': curr_node_id}})
-            qb.append(ProcessNode, with_incoming='predecessor', project=['id'],
-                edge_filters={'type': {'in': [LinkType.CALL_CALC.value, LinkType.CALL_WORK.value]}})
-            res = {_[0] for _ in qb.all()}
-            given_calculation_entry_ids.update(res - to_be_exported)
-
-            # CALL(ProcessNode, ProcessNode) - Reversed
-            if call_reversed:
-                qb = QueryBuilder()
-                qb.append(ProcessNode, tag='predecessor')
-                qb.append(ProcessNode, with_incoming='predecessor', project=['id'],
-                    filters={'id': {'==': curr_node_id}},
-                    edge_filters={'type': {'in': [LinkType.CALL_CALC.value, LinkType.CALL_WORK.value]}})
-                res = {_[0] for _ in qb.all()}
-                given_calculation_entry_ids.update(res - to_be_exported)
-
-
-        # If it is a Data node
-        else:
-            curr_node_id = given_data_entry_ids.pop()
-            # If it is already visited continue to the next node
-            if curr_node_id in to_be_exported:
-                continue
-            # Otherwise say that it is a node to be exported
-            else:
-                to_be_exported.add(curr_node_id)
-
-            # Case 2:
-            # CREATE(ProcessNode, Data) - Reversed
-            if create_reversed:
-                qb = QueryBuilder()
-                qb.append(ProcessNode, tag='predecessor', project=['id'])
-                qb.append(Data, with_incoming='predecessor',
-                          filters={'id': {'==': curr_node_id}},
-                          edge_filters={
-                              'type': {
-                                  'in': [LinkType.CREATE.value]}})
-                res = {_[0] for _ in qb.all()}
-                given_calculation_entry_ids.update(res - to_be_exported)
-
-            # Case 3:
-            # RETURN(ProcessNode, Data) - Reversed
-            if return_reversed:
-                qb = QueryBuilder()
-                qb.append(ProcessNode, tag='predecessor', project=['id'])
-                qb.append(Data, with_incoming='predecessor',
-                          filters={'id': {'==': curr_node_id}},
-                          edge_filters={
-                              'type': {
-                                  'in': [LinkType.RETURN.value]}})
-                res = {_[0] for _ in qb.all()}
-                given_calculation_entry_ids.update(res - to_be_exported)
+    # # We will iteratively explore the AiiDA graph to find further nodes that
+    # # should also be exported.
+    #
+    # # We repeat until there are no further nodes to be visited
+    # while given_calculation_entry_ids or given_data_entry_ids:
+    #
+    #     # If is is a calculation node
+    #     if given_calculation_entry_ids:
+    #         curr_node_id = given_calculation_entry_ids.pop()
+    #         # If it is already visited continue to the next node
+    #         if curr_node_id in to_be_exported:
+    #             continue
+    #         # Otherwise say that it is a node to be exported
+    #         else:
+    #             to_be_exported.add(curr_node_id)
+    #
+    #         # INPUT(Data, ProcessNode) - Reversed
+    #         qb = QueryBuilder()
+    #         qb.append(Data, tag='predecessor', project=['id'])
+    #         qb.append(ProcessNode, with_incoming='predecessor',
+    #                   filters={'id': {'==': curr_node_id}},
+    #                   edge_filters={'type': {'in': [LinkType.INPUT_CALC.value, LinkType.INPUT_WORK.value]}})
+    #         res = {_[0] for _ in qb.all()}
+    #         given_data_entry_ids.update(res - to_be_exported)
+    #
+    #         # INPUT(Data, ProcessNode) - Forward
+    #         if input_forward:
+    #             qb = QueryBuilder()
+    #             qb.append(Data, tag='predecessor', project=['id'],
+    #                       filters={'id': {'==': curr_node_id}})
+    #             qb.append(ProcessNode, with_incoming='predecessor',
+    #                   edge_filters={'type': {'in': [LinkType.INPUT_CALC.value, LinkType.INPUT_WORK.value]}})
+    #             res = {_[0] for _ in qb.all()}
+    #             given_data_entry_ids.update(res - to_be_exported)
+    #
+    #         # CREATE/RETURN(ProcessNode, Data) - Forward
+    #         qb = QueryBuilder()
+    #         qb.append(ProcessNode, tag='predecessor',
+    #                   filters={'id': {'==': curr_node_id}})
+    #         qb.append(Data, with_incoming='predecessor', project=['id'],
+    #                   edge_filters={
+    #                       'type': {
+    #                           'in': [LinkType.CREATE.value,
+    #                                  LinkType.RETURN.value]}})
+    #         res = {_[0] for _ in qb.all()}
+    #         given_data_entry_ids.update(res - to_be_exported)
+    #
+    #         # CREATE(ProcessNode, Data) - Reversed
+    #         if create_reversed:
+    #             qb = QueryBuilder()
+    #             qb.append(ProcessNode, tag='predecessor')
+    #             qb.append(Data, with_incoming='predecessor', project=['id'],
+    #                       filters={'id': {'==': curr_node_id}},
+    #                       edge_filters={
+    #                           'type': {
+    #                               'in': [LinkType.CREATE.value]}})
+    #             res = {_[0] for _ in qb.all()}
+    #             given_data_entry_ids.update(res - to_be_exported)
+    #
+    #         # RETURN(ProcessNode, Data) - Reversed
+    #         if return_reversed:
+    #             qb = QueryBuilder()
+    #             qb.append(ProcessNode, tag='predecessor')
+    #             qb.append(Data, with_incoming='predecessor', project=['id'],
+    #                       filters={'id': {'==': curr_node_id}},
+    #                       edge_filters={
+    #                           'type': {
+    #                               'in': [LinkType.RETURN.value]}})
+    #             res = {_[0] for _ in qb.all()}
+    #             given_data_entry_ids.update(res - to_be_exported)
+    #
+    #         # CALL(ProcessNode, ProcessNode) - Forward
+    #         qb = QueryBuilder()
+    #         qb.append(ProcessNode, tag='predecessor',
+    #                   filters={'id': {'==': curr_node_id}})
+    #         qb.append(ProcessNode, with_incoming='predecessor', project=['id'],
+    #             edge_filters={'type': {'in': [LinkType.CALL_CALC.value, LinkType.CALL_WORK.value]}})
+    #         res = {_[0] for _ in qb.all()}
+    #         given_calculation_entry_ids.update(res - to_be_exported)
+    #
+    #         # CALL(ProcessNode, ProcessNode) - Reversed
+    #         if call_reversed:
+    #             qb = QueryBuilder()
+    #             qb.append(ProcessNode, tag='predecessor')
+    #             qb.append(ProcessNode, with_incoming='predecessor', project=['id'],
+    #                 filters={'id': {'==': curr_node_id}},
+    #                 edge_filters={'type': {'in': [LinkType.CALL_CALC.value, LinkType.CALL_WORK.value]}})
+    #             res = {_[0] for _ in qb.all()}
+    #             given_calculation_entry_ids.update(res - to_be_exported)
+    #
+    #
+    #     # If it is a Data node
+    #     else:
+    #         curr_node_id = given_data_entry_ids.pop()
+    #         # If it is already visited continue to the next node
+    #         if curr_node_id in to_be_exported:
+    #             continue
+    #         # Otherwise say that it is a node to be exported
+    #         else:
+    #             to_be_exported.add(curr_node_id)
+    #
+    #         # Case 2:
+    #         # CREATE(ProcessNode, Data) - Reversed
+    #         if create_reversed:
+    #             qb = QueryBuilder()
+    #             qb.append(ProcessNode, tag='predecessor', project=['id'])
+    #             qb.append(Data, with_incoming='predecessor',
+    #                       filters={'id': {'==': curr_node_id}},
+    #                       edge_filters={
+    #                           'type': {
+    #                               'in': [LinkType.CREATE.value]}})
+    #             res = {_[0] for _ in qb.all()}
+    #             given_calculation_entry_ids.update(res - to_be_exported)
+    #
+    #         # Case 3:
+    #         # RETURN(ProcessNode, Data) - Reversed
+    #         if return_reversed:
+    #             qb = QueryBuilder()
+    #             qb.append(ProcessNode, tag='predecessor', project=['id'])
+    #             qb.append(Data, with_incoming='predecessor',
+    #                       filters={'id': {'==': curr_node_id}},
+    #                       edge_filters={
+    #                           'type': {
+    #                               'in': [LinkType.RETURN.value]}})
+    #             res = {_[0] for _ in qb.all()}
+    #             given_calculation_entry_ids.update(res - to_be_exported)
 
     ## Universal "entities" attributed to all types of nodes
     # Logs
-    if include_logs and to_be_exported:
+    if include_logs and to_be_exported_node_entry_ids:
         # Get related log(s) - universal for all nodes
         builder = QueryBuilder()
-        builder.append(Log, filters={'dbnode_id': {'in': to_be_exported}}, project=['id'])
+        builder.append(Log, filters={'dbnode_id': {'in': to_be_exported_node_entry_ids}}, project=['id'])
         res = {_[0] for _ in builder.all()}
         given_log_entry_ids.update(res)
 
     # Comments
-    if include_comments and to_be_exported:
+    if include_comments and to_be_exported_node_entry_ids:
         # Get related log(s) - universal for all nodes
         builder = QueryBuilder()
-        builder.append(Comment, filters={'dbnode_id': {'in': to_be_exported}}, project=['id'])
+        builder.append(Comment, filters={'dbnode_id': {'in': to_be_exported_node_entry_ids}}, project=['id'])
         res = {_[0] for _ in builder.all()}
         given_comment_entry_ids.update(res)
 
     # Here we get all the columns that we plan to project per entity that we
     # would like to extract
-    given_entities = list()
+    to_be_exported_entities = list()
     if len(given_group_entry_ids) > 0:
-        given_entities.append(GROUP_ENTITY_NAME)
-    if len(to_be_exported) > 0:
-        given_entities.append(NODE_ENTITY_NAME)
+        to_be_exported_entities.append(GROUP_ENTITY_NAME)
+    if len(to_be_exported_node_entry_ids) > 0:
+        to_be_exported_entities.append(NODE_ENTITY_NAME)
     if len(given_computer_entry_ids) > 0:
-        given_entities.append(COMPUTER_ENTITY_NAME)
+        to_be_exported_entities.append(COMPUTER_ENTITY_NAME)
     if len(given_log_entry_ids) > 0:
-        given_entities.append(LOG_ENTITY_NAME)
+        to_be_exported_entities.append(LOG_ENTITY_NAME)
     if len(given_comment_entry_ids) > 0:
-        given_entities.append(COMMENT_ENTITY_NAME)
+        to_be_exported_entities.append(COMMENT_ENTITY_NAME)
 
     entries_to_add = dict()
-    for given_entity in given_entities:
+    for to_be_exported_entity in to_be_exported_entities:
         project_cols = ["id"]
         # The following gets a list of fields that we need,
         # e.g. user, mtime, uuid, computer
-        entity_prop = all_fields_info[given_entity].keys()
+        entity_prop = all_fields_info[to_be_exported_entity].keys()
 
         # Here we do the necessary renaming of properties
         for prop in entity_prop:
             # nprop contains the list of projections
-            nprop = (file_fields_to_model_fields[given_entity][prop]
-                     if prop in file_fields_to_model_fields[given_entity]
+            nprop = (file_fields_to_model_fields[to_be_exported_entity][prop]
+                     if prop in file_fields_to_model_fields[to_be_exported_entity]
                      else prop)
             project_cols.append(nprop)
 
         # Getting the ids that correspond to the right entity
-        if given_entity == GROUP_ENTITY_NAME:
+        if to_be_exported_entity == GROUP_ENTITY_NAME:
             entry_ids_to_add = given_group_entry_ids
-        elif given_entity == NODE_ENTITY_NAME:
-            entry_ids_to_add = to_be_exported
-        elif given_entity == COMPUTER_ENTITY_NAME:
+        elif to_be_exported_entity == NODE_ENTITY_NAME:
+            entry_ids_to_add = to_be_exported_node_entry_ids
+        elif to_be_exported_entity == COMPUTER_ENTITY_NAME:
             entry_ids_to_add = given_computer_entry_ids
-        elif given_entity == LOG_ENTITY_NAME:
+        elif to_be_exported_entity == LOG_ENTITY_NAME:
             entry_ids_to_add = given_log_entry_ids
-        elif given_entity == COMMENT_ENTITY_NAME:
+        elif to_be_exported_entity == COMMENT_ENTITY_NAME:
             entry_ids_to_add = given_comment_entry_ids
 
         qb = QueryBuilder()
-        qb.append(entity_names_to_entities[given_entity],
+        qb.append(entity_names_to_entities[to_be_exported_entity],
                   filters={"id": {"in": entry_ids_to_add}},
                   project=project_cols,
-                  tag=given_entity, outerjoin=True)
-        entries_to_add[given_entity] = qb
+                  tag=to_be_exported_entity, outerjoin=True)
+        entries_to_add[to_be_exported_entity] = qb
 
     # TODO (Spyros) To see better! Especially for functional licenses
     # Check the licenses of exported data.
     if allowed_licenses is not None or forbidden_licenses is not None:
         qb = QueryBuilder()
         qb.append(Node, project=["id", "attributes.source.license"],
-                  filters={"id": {"in": to_be_exported}})
+                  filters={"id": {"in": to_be_exported_node_entry_ids}})
         # Skip those nodes where the license is not set (this is the standard behavior with Django)
         node_licenses = list((a, b) for [a, b] in qb.all() if b is not None)
         check_licences(node_licenses, allowed_licenses, forbidden_licenses)

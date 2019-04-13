@@ -22,7 +22,8 @@ import tempfile
 def draw_graph(origin_node,
                ancestor_depth=None,
                descendant_depth=None,
-               image_format='dot',
+               format='dot',
+               filename_suffix=None,
                include_calculation_inputs=False,
                include_calculation_outputs=False):
     """
@@ -197,13 +198,17 @@ def draw_graph(origin_node,
         fhandle.write(u"}\n")
 
     # Now I am producing the output file
-    output_file_name = "{0}.{1}".format(origin_node.pk, image_format)
-    # Try and convert the .dot file using the `dot` utility from graphviz
+    output_file_name = str(origin_node.pk)
+    if filename_suffix is not None:
+        output_file_name += "_{}".format(filename_suffix)
+
+    full_output_file_name = "{0}.{format}".format(output_file_name, format=format)
     try:
-        exit_code = subprocess.call(['dot', '-T', image_format, fname, '-o', output_file_name])
+        exit_code = subprocess.call(['dot', '-T', format, fname, '-o', full_output_file_name])
     except OSError:
         from aiida.cmdline.utils import echo
+
         echo.echo_critical('Operating system error - perhaps Graphviz is not installed?')
     # cleaning up by removing the temporary file
     os.remove(fname)
-    return exit_code, output_file_name
+    return exit_status, full_output_file_name
