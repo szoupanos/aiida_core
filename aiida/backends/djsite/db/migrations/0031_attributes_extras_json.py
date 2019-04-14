@@ -76,7 +76,16 @@ class Migration(migrations.Migration):
             model_name='dbextra',
             name='dbnode',
         ),
-        # Delete the DbExta table
+        # Delete the DbExtra table
         migrations.DeleteModel(name='DbExtra',),
-        upgrade_schema_version(REVISION, DOWN_REVISION)
+        upgrade_schema_version(REVISION, DOWN_REVISION),
+        # Change to DbComputer.transport_params and DbComputer.metadata to JSONB
+        migrations.AlterField(
+            model_name='dbcomputer',
+            name='transport_params',
+            field=django.contrib.postgres.fields.jsonb.JSONField(default={}, null=True)),
+        migrations.AlterField(
+            model_name='dbcomputer',
+            name='metadata',
+            field=django.contrib.postgres.fields.jsonb.JSONField(default={}, null=True)),
     ]

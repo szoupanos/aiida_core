@@ -84,21 +84,26 @@ class DjangoComputer(entities.DjangoModelEntity[models.DbComputer], BackendCompu
         return self._dbmodel.hostname
 
     def get_metadata(self):
-        return json.loads(self._dbmodel.metadata)
+        # return json.loads(self._dbmodel.metadata)
+        return self._dbmodel.metadata
 
     def set_metadata(self, metadata_dict):
-        self._dbmodel.metadata = json.dumps(metadata_dict)
+        # self._dbmodel.metadata = json.dumps(metadata_dict)
+        self._dbmodel.metadata = metadata_dict
 
     def get_transport_params(self):
         try:
-            return json.loads(self._dbmodel.transport_params)
+            # return json.loads(self._dbmodel.transport_params)
+            return self._dbmodel.transport_params
         except ValueError:
             raise exceptions.DbContentError('Error while reading transport params for Computer<{}>'.format(
                 self.hostname))
 
     def set_transport_params(self, val):
         try:
-            self._dbmodel.transport_params = json.dumps(val)
+            json.dumps(val)  # Check if json compatible
+            # self._dbmodel.transport_params = json.dumps(val)
+            self._dbmodel.transport_params = val
         except ValueError:
             raise ValueError('The set of transport_params are not JSON-able')
 
