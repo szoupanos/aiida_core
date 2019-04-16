@@ -36,6 +36,7 @@ class TestMigrations(AiidaTestCase):
 
     def setUp(self):
         """Go to a specific schema version before running tests."""
+        from aiida.backends import sqlalchemy as sa
         from aiida.orm import autogroup
 
         self.current_autogroup = autogroup.current_autogroup
@@ -47,8 +48,12 @@ class TestMigrations(AiidaTestCase):
         executor = MigrationExecutor(connection)
         self.apps = executor.loader.project_state(self.migrate_from).apps
 
+        # Reset session for the migration
+        sa.get_scoped_session().close()
         # Reverse to the original migration
         executor.migrate(self.migrate_from)
+        # Reset session after the migration
+        sa.get_scoped_session().close()
 
         self.default_user = self.backend.users.create('{}@aiida.net'.format(self.id())).store()
         self.DbNode = self.apps.get_model('db', 'DbNode')
@@ -58,7 +63,12 @@ class TestMigrations(AiidaTestCase):
             # Run the migration to test
             executor = MigrationExecutor(connection)
             executor.loader.build_graph()
+
+            # Reset session for the migration
+            sa.get_scoped_session().close()
             executor.migrate(self.migrate_to)
+            # Reset session after the migration
+            sa.get_scoped_session().close()
 
             self.apps = executor.loader.project_state(self.migrate_to).apps
         except Exception as exception:
@@ -81,9 +91,16 @@ class TestMigrations(AiidaTestCase):
     def _revert_database_schema(self):
         """Bring back the DB to the correct state."""
         from ..migrations import LATEST_MIGRATION
+        from aiida.backends import sqlalchemy as sa
+
         self.migrate_to = [(self.app, LATEST_MIGRATION)]
+
+        # Reset session for the migration
+        sa.get_scoped_session().close()
         executor = MigrationExecutor(connection)
         executor.migrate(self.migrate_to)
+        # Reset session after the migration
+        sa.get_scoped_session().close()
 
     def load_node(self, pk):
         return self.DbNode.objects.get(pk=pk)
