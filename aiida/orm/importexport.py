@@ -1596,7 +1596,6 @@ def import_data_sqla(in_path, user_group=None, ignore_unknown_nodes=False,
                                                 "  already exists and I could not create a new one"
                                                 "".format(orig_label))
 
-
                             elif entity_name == COMPUTER_ENTITY_NAME:
                                 # The following is done for compatibility
                                 # reasons in case the export file was generated

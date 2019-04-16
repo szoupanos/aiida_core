@@ -30,7 +30,6 @@ from aiida.orm.importexport import import_data, export
 from aiida.backends.tests.utils.configuration import with_temp_dir
 
 
-# class TestSpecificImport():
 class TestSpecificImport(AiidaTestCase):
     """Test specific ex-/import cases"""
 
@@ -178,8 +177,7 @@ class TestSpecificImport(AiidaTestCase):
             self.assertGreater(len(builder.all()), 0)
 
 
-class TestSimple():
-# class TestSimple(AiidaTestCase):
+class TestSimple(AiidaTestCase):
     """Test simple ex-/import cases"""
 
     def setUp(self):
@@ -361,8 +359,7 @@ class TestSimple():
                         forbidden_licenses=crashing_filter)
 
 
-class TestUsers():
-# class TestUsers(AiidaTestCase):
+class TestUsers(AiidaTestCase):
     """Test ex-/import cases related to Users"""
 
     def setUp(self):
@@ -524,8 +521,7 @@ class TestUsers():
             self.assertEqual(orm.load_node(uuid).user.email, manager.get_profile().default_user_email)
 
 
-class TestGroups():
-# class TestGroups(AiidaTestCase):
+class TestGroups(AiidaTestCase):
     """Test ex-/import cases related to Groups"""
 
     def setUp(self):
@@ -676,8 +672,7 @@ class TestGroups():
         self.assertEqual(builder.count(), 2)
 
 
-# class TestCalculations(AiidaTestCase):
-class TestCalculations():
+class TestCalculations(AiidaTestCase):
     """Test ex-/import cases related to Calculations"""
 
     def setUp(self):
@@ -751,8 +746,7 @@ class TestCalculations():
             self.assertEqual(orm.load_node(uuid).value, value)
 
 
-class TestComplex():
-# class TestComplex(AiidaTestCase):
+class TestComplex(AiidaTestCase):
     """Test complex ex-/import cases"""
 
     def setUp(self):
@@ -942,8 +936,7 @@ class TestComplex():
             self.assertEqual(hash_from_dbcontent, new_hash)
 
 
-class TestComputer():
-# class TestComputer(AiidaTestCase):
+class TestComputer(AiidaTestCase):
     """Test ex-/import cases related to Computers"""
 
     def setUp(self):
@@ -1326,8 +1319,7 @@ class TestComputer():
             self.assertEqual(res['comp']['_metadata'], comp1_metadata)
 
 
-class TestLinks():
-# class TestLinks(AiidaTestCase):
+class TestLinks(AiidaTestCase):
     """Test ex-/import cases related to Links"""
 
     def setUp(self):
@@ -1798,8 +1790,7 @@ class TestLinks():
         self.assertEqual(len(links_in_db), links_count)   # After import
 
 
-class TestCode():
-# class TestCode(AiidaTestCase):
+class TestCode(AiidaTestCase):
     """Test ex-/import cases related to Codes"""
 
     def setUp(self):
@@ -1916,8 +1907,7 @@ class TestCode():
         self.assertEqual(orm.load_node(code_uuid).label, code_label)
 
 
-class TestLogs():
-# class TestLogs(AiidaTestCase):
+class TestLogs(AiidaTestCase):
     """Test ex-/import cases related to Logs"""
 
     def setUp(self):
@@ -2305,8 +2295,7 @@ class TestLogs():
             self.assertIn(log_message, log_msgs)
 
 
-class TestComments():
-# class TestComments(AiidaTestCase):
+class TestComments(AiidaTestCase):
     """Test ex-/import cases related to Comments"""
 
     def setUp(self):
@@ -2871,7 +2860,6 @@ class TestComments():
             self.assertIn(comment_content, self.comments)
 
 
-# class TestExtras():
 class TestExtras(AiidaTestCase):
     """Test ex-/import cases related to Extras"""
 
@@ -3024,8 +3012,7 @@ class TestExtras(AiidaTestCase):
             import_data(self.export_file, silent=True, extras_mode_existing=5)  # wrong type
 
 
-class TestProvenanceRedesign():
-# class TestProvenanceRedesign(AiidaTestCase):
+class TestProvenanceRedesign(AiidaTestCase):
     """ Check changes in database schema after upgrading to v0.4 (Provenance Redesign)
     This includes all migrations from "base_data_plugin_type_string" (django: 0008)
     until "dbgroup_type_string_change_content" (django: 0022), both included.

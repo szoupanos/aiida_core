@@ -78,6 +78,10 @@ class DjangoQueryBuilder(BackendQueryBuilder):
     """Django query builder"""
 
     # pylint: disable=too-many-public-methods
+
+    def __init__(self, backend):
+        BackendQueryBuilder.__init__(self, backend)
+
     @property
     def Node(self):
         return djmodels.DbNode.sa
@@ -462,8 +466,12 @@ class DjangoQueryBuilder(BackendQueryBuilder):
                         for colindex, rowitem in enumerate(resultrow)
                     ]
 
-    def iterdict(self, query, batch_size, tag_to_projected_entity_dict):
+    def iterdict(self, query, batch_size, tag_to_projected_entity_dict, tag_to_alias_map):
         from django.db import transaction
+
+        def get_table_name(aliased_class):
+            """ Returns the table name given an Aliased class based on Aldjemy"""
+            return aliased_class._aliased_insp._target.table.name
 
         nr_items = sum(len(v) for v in tag_to_projected_entity_dict.values())
 
@@ -478,7 +486,9 @@ class DjangoQueryBuilder(BackendQueryBuilder):
                 for this_result in results:
                     yield {
                         tag: {
-                            attrkey: self.get_aiida_res(attrkey, this_result[index_in_sql_result])
+                            self.get_corresponding_property(
+                                get_table_name(tag_to_alias_map[tag]), attrkey, self.inner_to_outer_schema):
+                            self.get_aiida_res(attrkey, this_result[index_in_sql_result])
                             for attrkey, index_in_sql_result in projected_entities_dict.items()
                         } for tag, projected_entities_dict in tag_to_projected_entity_dict.items()
                     }
@@ -489,7 +499,9 @@ class DjangoQueryBuilder(BackendQueryBuilder):
                     for this_result in results:
                         yield {
                             tag: {
-                                attrkey: self.get_aiida_res(attrkey, this_result)
+                                self.get_corresponding_property(
+                                    get_table_name(tag_to_alias_map[tag]), attrkey, self.inner_to_outer_schema):
+                                self.get_aiida_res(attrkey, this_result)
                                 for attrkey, position in projected_entities_dict.items()
                             } for tag, projected_entities_dict in tag_to_projected_entity_dict.items()
                         }
@@ -497,7 +509,9 @@ class DjangoQueryBuilder(BackendQueryBuilder):
                     for this_result, in results:
                         yield {
                             tag: {
-                                attrkey: self.get_aiida_res(attrkey, this_result)
+                                self.get_corresponding_property(
+                                    get_table_name(tag_to_alias_map[tag]), attrkey, self.inner_to_outer_schema):
+                                self.get_aiida_res(attrkey, this_result)
                                 for attrkey, position in projected_entities_dict.items()
                             } for tag, projected_entities_dict in tag_to_projected_entity_dict.items()
                         }

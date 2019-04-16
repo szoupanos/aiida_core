@@ -79,13 +79,17 @@ class Migration(migrations.Migration):
         # Delete the DbExtra table
         migrations.DeleteModel(name='DbExtra',),
         upgrade_schema_version(REVISION, DOWN_REVISION),
-        # Change to DbComputer.transport_params and DbComputer.metadata to JSONB
-        migrations.AlterField(
-            model_name='dbcomputer',
-            name='transport_params',
-            field=django.contrib.postgres.fields.jsonb.JSONField(default={}, null=True)),
-        migrations.AlterField(
-            model_name='dbcomputer',
-            name='metadata',
-            field=django.contrib.postgres.fields.jsonb.JSONField(default={}, null=True)),
+
+        # The following is not needed because it was done by Sebastiaan too in migration 0033
+        # I don't see any data migration for 00033. Is it done automatically?
+
+        # # Change to DbComputer.transport_params and DbComputer.metadata to JSONB
+        # migrations.AlterField(
+        #     model_name='dbcomputer',
+        #     name='transport_params',
+        #     field=django.contrib.postgres.fields.jsonb.JSONField(default={}, null=True)),
+        # migrations.AlterField(
+        #     model_name='dbcomputer',
+        #     name='metadata',
+        #     field=django.contrib.postgres.fields.jsonb.JSONField(default={}, null=True)),
     ]

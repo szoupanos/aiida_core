@@ -502,7 +502,7 @@ class TestQueryBuilder(AiidaTestCase):
         # pylint: disable=protected-access
         self.assertTrue('s' not in qb._projections)
         self.assertTrue('s' not in qb._filters)
-        self.assertTrue('s' not in qb._tag_to_alias_map)
+        self.assertTrue('s' not in qb.tag_to_alias_map)
         self.assertTrue(len(qb._path) == 0)
         self.assertTrue(orm.StructureData not in qb._cls_to_tag_map)
         # So this should work now:
