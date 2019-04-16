@@ -22,7 +22,7 @@ DB_TEST_LIST = {
     BACKEND_DJANGO: {
         'generic': ['aiida.backends.djsite.db.subtests.test_generic'],
         'nodes': ['aiida.backends.djsite.db.subtests.test_nodes'],
-        'migrations': ['aiida.backends.djsite.db.subtests.test_migrations'],
+        # 'migrations': ['aiida.backends.djsite.db.subtests.test_migrations'],
         'query': ['aiida.backends.djsite.db.subtests.test_query'],
     },
     BACKEND_SQLA: {
@@ -132,7 +132,7 @@ DB_TEST_LIST = {
         'parsers': ['aiida.backends.tests.test_parsers'],
         'plugin_loader': ['aiida.backends.tests.test_plugin_loader'],
         'query': ['aiida.backends.tests.test_query'],
-        'restapi': ['aiida.backends.tests.test_restapi'],
+        # 'restapi': ['aiida.backends.tests.test_restapi'],
         'tools.data.orbital': ['aiida.backends.tests.tools.data.orbital.test_orbitals']
     }
 }
