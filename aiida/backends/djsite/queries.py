@@ -155,25 +155,10 @@ class DjangoQueryManager(AbstractQueryManager):
             struc_pks = [structure_dict[pk] for pk in pks]
 
             # query for the attributes needed for the structure formula
-            attr_query = Q(key__startswith='kinds') | Q(key__startswith='sites')
-            attrs = models.DbAttribute.objects.filter(attr_query,
-                                                      dbnode__in=struc_pks).values_list(
-                'dbnode__pk', 'key', 'datatype', 'tval', 'fval',
-                'ival', 'bval', 'dval')
-
-            results = defaultdict(dict)
-            for attr in attrs:
-                results[attr[0]][attr[1]] = {"datatype": attr[2],
-                                             "tval": attr[3],
-                                             "fval": attr[4],
-                                             "ival": attr[5],
-                                             "bval": attr[6],
-                                             "dval": attr[7]}
-            # organize all of it in a dictionary
+            res_attr = models.DbNode.objects.filter(id__in=struc_pks).values_list('id', 'attributes')
             deser_data = {}
-            for k in results:
-                deser_data[k] = models.deserialize_attributes(results[k],
-                                                              sep=models.DbAttribute._sep)
+            for rattr in res_attr:
+                deser_data[rattr[0]] = rattr[1]
 
             # prepare the printout
             for ((bid, blabel, bdate), struc_pk) in zip(this_chunk, struc_pks):
