@@ -22,6 +22,7 @@ from aiida.common import exceptions
 from aiida.common.utils import export_shard_uuid, get_class_string, grouper, get_new_uuid
 from aiida.orm import Computer, Group, GroupTypeString, Node, QueryBuilder, User, Log, Comment
 from aiida.orm.utils.repository import Repository
+from aiida.backends.utils import datetime_to_isoformat
 
 IMPORTGROUP_TYPE = GroupTypeString.IMPORTGROUP_TYPE.value
 DUPL_SUFFIX = ' (Imported #{})'
@@ -946,7 +947,7 @@ def import_data_dj(in_path, user_group=None, ignore_unknown_nodes=False,
                         if deserialized_attributes:
                             o.attributes = dict()
                             for k, v in deserialized_attributes.items():
-                                o.attributes[k] = v
+                                o.attributes[k] = datetime_to_isoformat(v)
 
                         # For DbNodes, we also have to store its extras
                         if extras_mode_new == 'import':
@@ -977,7 +978,7 @@ def import_data_dj(in_path, user_group=None, ignore_unknown_nodes=False,
                             # till here
                             o.extras = dict()
                             for k, v in deserialized_extras.items():
-                                o.extras[k] = v
+                                o.extras[k] = datetime_to_isoformat(v)
                         elif extras_mode_new == 'none':
                             if not silent:
                                 print("SKIPPING NEW NODE EXTRAS...")

@@ -193,9 +193,13 @@ class DbNode(m.Model):
 
         if self.attributes is None:
             self.attributes = dict()
+        else:
+            self.attributes = datetime_to_isoformat(self.attributes)
 
         if self.extras is None:
             self.extras = dict()
+        else:
+            self.extras = datetime_to_isoformat(self.extras)
 
     def set_attribute(self, key, value):
         DbNode._set_attr(self.attributes, key, value)
