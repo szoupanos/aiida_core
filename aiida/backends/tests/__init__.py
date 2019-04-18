@@ -22,7 +22,8 @@ DB_TEST_LIST = {
     BACKEND_DJANGO: {
         'generic': ['aiida.backends.djsite.db.subtests.test_generic'],
         'nodes': ['aiida.backends.djsite.db.subtests.test_nodes'],
-        'migrations': ['aiida.backends.djsite.db.subtests.test_migrations'],
+        # 'migrations': ['aiida.backends.djsite.db.subtests.test_migrations'],
+        'migrations': ['aiida.backends.djsite.db.subtests.test_migrations_jsonb'],
         'query': ['aiida.backends.djsite.db.subtests.test_query'],
     },
     BACKEND_SQLA: {
@@ -31,7 +32,7 @@ DB_TEST_LIST = {
         'query': ['aiida.backends.sqlalchemy.tests.test_query'],
         'session': ['aiida.backends.sqlalchemy.tests.test_session'],
         'schema': ['aiida.backends.sqlalchemy.tests.test_schema'],
-        'migrations': ['aiida.backends.sqlalchemy.tests.test_migrations'],
+        # 'migrations': ['aiida.backends.sqlalchemy.tests.test_migrations'],
     },
     # Must be always defined (in the worst case, an empty dict)
     'common': {
