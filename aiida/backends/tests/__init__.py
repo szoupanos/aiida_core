@@ -22,8 +22,10 @@ DB_TEST_LIST = {
     BACKEND_DJANGO: {
         'generic': ['aiida.backends.djsite.db.subtests.test_generic'],
         'nodes': ['aiida.backends.djsite.db.subtests.test_nodes'],
-        # 'migrations': ['aiida.backends.djsite.db.subtests.test_migrations'],
-        'migrations': ['aiida.backends.djsite.db.subtests.test_migrations_jsonb'],
+        'migrations': [
+            # 'aiida.backends.djsite.db.subtests.migrations.test_migrations_many',
+            'aiida.backends.djsite.db.subtests.migrations.test_migrations_0034_attributes_extras_json'
+        ],
         'query': ['aiida.backends.djsite.db.subtests.test_query'],
     },
     BACKEND_SQLA: {

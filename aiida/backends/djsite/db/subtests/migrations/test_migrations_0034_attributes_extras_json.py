@@ -11,37 +11,17 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-from six.moves import range
-
-import numpy
-
-from django.apps import apps
-from django.db.migrations.executor import MigrationExecutor
-from django.db import connection
-
-from aiida.backends.testbase import AiidaTestCase
-from aiida.backends.djsite.db.migrations import ModelModifierV0025
-from aiida.backends.general.migrations import utils
-from aiida.common.exceptions import IntegrityError
-from aiida.manage.database.integrity.duplicate_uuid import deduplicate_uuids, verify_uuid_uniqueness
-
 import contextlib
 import six
-from six.moves import zip, range
-from django.db import models as m
-from django.contrib.auth.models import (AbstractBaseUser, BaseUserManager, PermissionsMixin)
+from six.moves import range
 from django.utils.encoding import python_2_unicode_compatible
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models.query import QuerySet
 
-from aiida.common import timezone
-from aiida.common.utils import get_new_uuid
-from aiida.common.exceptions import (ConfigurationError, DbContentError)
-from aiida.backends.djsite.settings.settings import AUTH_USER_MODEL
+from aiida.common.exceptions import (DbContentError)
 import aiida.backends.djsite.db.migrations as migrations
 from aiida.backends.utils import AIIDA_ATTRIBUTE_SEP
 
-from aiida.backends.djsite.db.subtests.test_migrations import TestMigrations
+from aiida.backends.djsite.db.subtests.migrations.test_migrations import TestMigrations
 
 
 class TestTextFieldToJSONFieldMigration(TestMigrations):
@@ -56,7 +36,6 @@ class TestTextFieldToJSONFieldMigration(TestMigrations):
     DbComputer = None
 
     def setUpBeforeMigration(self):
-        from aiida.common import json
 
         # self.DbNode = self.apps.get_model('db', 'DbNode')
         # self.DbAttributeBase = self.apps.get_model('db', 'DbAttribute')
@@ -1513,3 +1492,5 @@ class TestTextFieldToJSONFieldMigration(TestMigrations):
     def test_text_field_to_json_field_migration(self):
         """Verify that the values in the text fields were maintained after migrating the field to JSONField."""
         print("Hello world")
+
+

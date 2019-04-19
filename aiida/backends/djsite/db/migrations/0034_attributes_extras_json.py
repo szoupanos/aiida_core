@@ -11,6 +11,9 @@
 """Adding JSONB field for Node.attributes and Node.Extras"""
 from __future__ import absolute_import
 
+import gc
+import math
+
 # Remove when https://github.com/PyCQA/pylint/issues/1931 is fixed
 # pylint: disable=no-name-in-module,import-error
 import django.contrib.postgres.fields.jsonb
@@ -20,6 +23,112 @@ from aiida.backends.djsite.db.migrations import upgrade_schema_version
 REVISION = '1.0.34'
 DOWN_REVISION = '1.0.33'
 
+# def transition_attributes(profile=None, group_size=1000, debug=False, delete_table=False):
+def transition_attributes(apps, _):
+    """
+    Migrate the DbAttribute table into the attributes column of db_dbnode.
+    """
+    print("\nStarting migration of attributes")
+    # node_table_cols = inspector.get_columns(NODE_TABLE_NAME)
+
+    session = sa.get_scoped_session()
+
+    with session.begin(subtransactions=True):
+
+        from aiida.backends.sqlalchemy.models.node import DbNode
+        total_nodes = session.query(func.count(DbNode.id)).scalar()
+
+        total_groups = int(math.ceil(total_nodes / group_size))
+        error = False
+
+        for i in range(total_groups):
+            print("Migrating group {} of {}".format(i, total_groups))
+
+            nodes = DbNode.query.options(
+                subqueryload('old_attrs'), load_only('id', 'attributes')
+            ).order_by(DbNode.id)[i * group_size:(i + 1) * group_size]
+
+            for node in nodes:
+                attrs, err_ = attributes_to_dict(sorted(node.old_attrs,
+                                                        key=lambda a: a.key))
+                error |= err_
+
+                node.attributes = attrs
+                session.add(node)
+
+            # Remove the db_dbnode from sqlalchemy, to allow the GC to do its
+            # job.
+            session.flush()
+            session.expunge_all()
+
+            del nodes
+            gc.collect()
+    session.commit()
+    print("Migration of attributes finished.")
+
+
+def attributes_to_dict(attr_list):
+    """
+    Transform the attributes of a node into a dictionary. It assumes the key
+    are ordered alphabetically, and that they all belong to the same node.
+    """
+    d = {}
+
+    error = False
+    for a in attr_list:
+        try:
+            tmp_d = select_from_key(a.key, d)
+        except Exception:
+            print("Couldn't transfer attribute {} with key {} for dbnode {}"
+                  .format(a.id, a.key, a.dbnode_id))
+            error = True
+            continue
+        key = a.key.split('.')[-1]
+
+        if key.isdigit():
+            key = int(key)
+
+        dt = a.datatype
+
+        if dt == "dict":
+            tmp_d[key] = {}
+        elif dt == "list":
+            tmp_d[key] = [None] * a.ival
+        else:
+            val = None
+            if dt == "txt":
+                val = a.tval
+            elif dt == "float":
+                val = a.fval
+                if math.isnan(val):
+                    val = 'NaN'
+            elif dt == "int":
+                val = a.ival
+            elif dt == "bool":
+                val = a.bval
+            elif dt == "date":
+                val = a.dval
+
+            tmp_d[key] = val
+
+    return (d, error)
+
+
+def select_from_key(key, d):
+    """
+    Return element of the dict to do the insertion on. If it is foo.1.bar, it
+    will return d["foo"][1]. If it is only foo, it will return d directly.
+    """
+    path = key.split('.')[:-1]
+
+    tmp_d = d
+    for p in path:
+        if p.isdigit():
+            tmp_d = tmp_d[int(p)]
+        else:
+            tmp_d = tmp_d[p]
+
+    return tmp_d
 
 class Migration(migrations.Migration):
     """
@@ -46,6 +155,7 @@ class Migration(migrations.Migration):
         # ##############################################################
         # Migrate the data from the DbAttribute table to the JSONB field
         # ##############################################################
+        migrations.RunPython(transition_attributes, reverse_code=None),
         # Delete the binding of Node-Attribute
         migrations.AlterUniqueTogether(
             name='dbattribute',
