@@ -21,7 +21,7 @@ from aiida.common.exceptions import (DbContentError)
 import aiida.backends.djsite.db.migrations as migrations
 from aiida.backends.utils import AIIDA_ATTRIBUTE_SEP
 
-from aiida.backends.djsite.db.subtests.migrations.test_migrations import TestMigrations
+from aiida.backends.djsite.db.subtests.migrations.test_migrations_common import TestMigrations
 
 
 class TestTextFieldToJSONFieldMigration(TestMigrations):
@@ -34,6 +34,8 @@ class TestTextFieldToJSONFieldMigration(TestMigrations):
     DbExtraBase = None
     DbUser = None
     DbComputer = None
+
+    nodes_to_verify = dict()
 
     def setUpBeforeMigration(self):
 
@@ -1489,8 +1491,24 @@ class TestTextFieldToJSONFieldMigration(TestMigrations):
         DbAttributeBase = self.apps.get_model('db', 'DbAttribute')
         print(list(DbAttributeBase.objects.values('datatype')))
 
+        import copy
+        self.nodes_to_verify[node.id] = dict()
+        self.nodes_to_verify[node.id]['attr'] = copy.deepcopy(extras_to_set)
+        self.nodes_to_verify[node.id]['extr'] = copy.deepcopy(extras_to_set)
+
     def test_text_field_to_json_field_migration(self):
         """Verify that the values in the text fields were maintained after migrating the field to JSONField."""
         print("Hello world")
+
+        DbNode = self.apps.get_model('db', 'DbNode')
+        for curr_dbnode in DbNode.objects.all():
+            self.assertEqual(curr_dbnode.attributes, self.nodes_to_verify[curr_dbnode.id]['attr'])
+            self.assertEqual(curr_dbnode.extras, self.nodes_to_verify[curr_dbnode.id]['extr'])
+
+
+
+
+
+
 
 

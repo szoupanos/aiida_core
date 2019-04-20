@@ -16,12 +16,21 @@ import math
 
 # Remove when https://github.com/PyCQA/pylint/issues/1931 is fixed
 # pylint: disable=no-name-in-module,import-error
+from django.db import transaction
 import django.contrib.postgres.fields.jsonb
 from django.db import migrations
 from aiida.backends.djsite.db.migrations import upgrade_schema_version
 
 REVISION = '1.0.34'
 DOWN_REVISION = '1.0.33'
+
+
+def lazy_bulk_fetch(max_obj, max_count, fetch_func, start=0):
+    counter = start
+    while counter < max_count:
+        yield fetch_func()[counter:counter + max_obj]
+        counter += max_obj
+
 
 # def transition_attributes(profile=None, group_size=1000, debug=False, delete_table=False):
 def transition_attributes(apps, _):
@@ -31,39 +40,80 @@ def transition_attributes(apps, _):
     print("\nStarting migration of attributes")
     # node_table_cols = inspector.get_columns(NODE_TABLE_NAME)
 
-    session = sa.get_scoped_session()
+    DbNode = apps.get_model('db', 'DbNode')
+    DbAttributes = apps.get_model('db', 'DbAttribute')
 
-    with session.begin(subtransactions=True):
+    group_size = 1000
 
-        from aiida.backends.sqlalchemy.models.node import DbNode
-        total_nodes = session.query(func.count(DbNode.id)).scalar()
+    # session = sa.get_scoped_session()
 
-        total_groups = int(math.ceil(total_nodes / group_size))
+    # with session.begin(subtransactions=True):
+    with transaction.atomic():
+
+        # from aiida.backends.sqlalchemy.models.node import DbNode
+        # total_nodes = session.query(func.count(DbNode.id)).scalar()
+        total_nodes = DbNode.objects.count()
+
+        fetcher = lazy_bulk_fetch(50, DbNode.objects.count(), DbNode.objects.all)
         error = False
 
-        for i in range(total_groups):
-            print("Migrating group {} of {}".format(i, total_groups))
+        for batch in fetcher:
+            # Get the ids of the nodes
+            print(batch)
+            updated_nodes = list()
+            for curr_dbnode in batch:
+                print("node ==========>" + str(curr_dbnode))
+                print("dbattr ==========>" + str(curr_dbnode.dbattributes.all()))
+                print("attr ==========>" + str(curr_dbnode.attributes))
 
-            nodes = DbNode.query.options(
-                subqueryload('old_attrs'), load_only('id', 'attributes')
-            ).order_by(DbNode.id)[i * group_size:(i + 1) * group_size]
-
-            for node in nodes:
-                attrs, err_ = attributes_to_dict(sorted(node.old_attrs,
-                                                        key=lambda a: a.key))
+                # Migrating attributes
+                dbattrs = list(curr_dbnode.dbattributes.all())
+                attrs, err_ = attributes_to_dict(sorted(dbattrs, key=lambda a: a.key))
                 error |= err_
+                curr_dbnode.attributes = attrs
 
-                node.attributes = attrs
-                session.add(node)
+                # Migrating extras
+                dbextr = list(curr_dbnode.dbextras.all())
+                extr, err_ = attributes_to_dict(sorted(dbextr, key=lambda a: a.key))
+                error |= err_
+                curr_dbnode.extras = extr
 
-            # Remove the db_dbnode from sqlalchemy, to allow the GC to do its
-            # job.
-            session.flush()
-            session.expunge_all()
+                # Saving the result
+                curr_dbnode.save()
 
-            del nodes
-            gc.collect()
-    session.commit()
+                print("WWWWWWW 1 ===>", str(curr_dbnode.attributes))
+                print("WWWWWWW 2 ===>", str(curr_dbnode.extras))
+
+            # DbNode.objects.bulk_create()
+
+
+        # total_groups = int(math.ceil(total_nodes / group_size))
+        # error = False
+        #
+        # for i in range(total_groups):
+        #     print("Migrating group {} of {}".format(i, total_groups))
+        #
+        #     node_ids = DbNode.objects.all()
+        #
+        #     nodes = DbNode.query.options(
+        #         subqueryload('old_attrs'), load_only('id', 'attributes')
+        #     ).order_by(DbNode.id)[i * group_size:(i + 1) * group_size]
+        #
+        #     for node in nodes:
+        #         attrs, err_ = attributes_to_dict(sorted(node.old_attrs,
+        #                                                 key=lambda a: a.key))
+        #         error |= err_
+        #
+        #         node.attributes = attrs
+        #         session.add(node)
+        #
+        #     # Remove the db_dbnode from sqlalchemy, to allow the GC to do its
+        #     # job.
+        #     session.flush()
+        #     session.expunge_all()
+        #
+        #     del nodes
+        #     gc.collect()
     print("Migration of attributes finished.")
 
 
@@ -146,16 +196,22 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Create the DBNode.Attribute JSONB field
+        # Create the DBNode.Attribute JSONB and DBNode.Extra JSONB fields
         migrations.AddField(
             model_name='dbnode',
             name='attributes',
             field=django.contrib.postgres.fields.jsonb.JSONField(default=None, null=True),
         ),
+        migrations.AddField(
+            model_name='dbnode',
+            name='extras',
+            field=django.contrib.postgres.fields.jsonb.JSONField(default=None, null=True),
+        ),
         # ##############################################################
         # Migrate the data from the DbAttribute table to the JSONB field
         # ##############################################################
-        migrations.RunPython(transition_attributes, reverse_code=None),
+        migrations.RunPython(transition_attributes, reverse_code=migrations.RunPython.noop),
+
         # Delete the binding of Node-Attribute
         migrations.AlterUniqueTogether(
             name='dbattribute',
@@ -168,14 +224,7 @@ class Migration(migrations.Migration):
         ),
         # Delete the DbAttribute table
         migrations.DeleteModel(name='DbAttribute',),
-        # ###########################################################
-        # Migrate the data from the DbAExtra table to the JSONB field
-        # ###########################################################
-        # Create the DBNode.Extra JSONB field
-        migrations.AddField(
-            model_name='dbnode',
-            name='extras',
-            field=django.contrib.postgres.fields.jsonb.JSONField(default=None, null=True)),
+
         # Delete the binding of Node-Extra
         migrations.AlterUniqueTogether(
             name='dbextra',
@@ -187,7 +236,8 @@ class Migration(migrations.Migration):
             name='dbnode',
         ),
         # Delete the DbExtra table
-        migrations.DeleteModel(name='DbExtra',),
+        migrations.DeleteModel(name='DbExtra', ),
+
         upgrade_schema_version(REVISION, DOWN_REVISION),
 
         # The following is not needed because it was done by Sebastiaan too in migration 0033
