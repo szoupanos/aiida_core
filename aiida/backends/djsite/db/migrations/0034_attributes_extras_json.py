@@ -13,7 +13,6 @@ from __future__ import absolute_import
 
 from __future__ import print_function
 import math
-import sys
 
 # Remove when https://github.com/PyCQA/pylint/issues/1931 is fixed
 # pylint: disable=no-name-in-module,import-error
@@ -52,7 +51,7 @@ def transition_attributes_extras(apps, _):
         if total_node_no == 0:
             return
 
-        with click.progressbar(label='Modifying user accounts',
+        with click.progressbar(label='Updating attributes and extras',
                                length=total_node_no, show_pos=True) as bar:
             fetcher = lazy_bulk_fetch(group_size, total_node_no, db_node_model.objects.all)
             error = False
@@ -80,6 +79,7 @@ def transition_attributes_extras(apps, _):
                         raise Exception("There has been some errors during the migration")
 
     echo.echo_warning('Finished the data migration of attributes and extras.')
+
 
 def attributes_to_dict(attr_list):
     """

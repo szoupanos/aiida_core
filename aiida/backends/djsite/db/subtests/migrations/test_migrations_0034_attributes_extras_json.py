@@ -13,8 +13,11 @@ from __future__ import absolute_import
 
 import six
 import copy
+import click
+from django.db import transaction
 from django.utils.encoding import python_2_unicode_compatible
 from aiida.backends.djsite.db.subtests.migrations.test_migrations_common import TestMigrations
+from six.moves import range
 
 sample_dict_for_attrs_and_extras = {
     'bool': True,
@@ -106,10 +109,9 @@ class TestTextFieldToJSONFieldMigrationManyNodes(TestMigrations):
     nodes_to_verify = dict()
 
     # Number of nodes to create
-    nodes_no_to_create = 10000
+    nodes_no_to_create = 20
 
     def setUpBeforeMigration(self):
-
         db_node_model = self.apps.get_model('db', 'DbNode')
         db_user_model = self.apps.get_model('db', 'DbUser')
         db_computer_model = self.apps.get_model('db', 'DbComputer')
@@ -130,32 +132,33 @@ class TestTextFieldToJSONFieldMigrationManyNodes(TestMigrations):
             metadata={"workdir": "/tmp/aiida"})
         computer.save()
 
-        for _ in range(self.nodes_no_to_create):
-            node = db_node_model(
-                node_type='data.Data.', nodeversion=1, public=False, dbcomputer_id=computer.id, user_id=user.id)
-            node.save()
+        with transaction.atomic():
+            for _ in range(self.nodes_no_to_create):
+                node = db_node_model(
+                    node_type='data.Data.', nodeversion=1, public=False, dbcomputer_id=computer.id, user_id=user.id)
+                node.save()
 
-            attr_copy = copy.deepcopy(sample_dict_for_attrs_and_extras)
-            attr_copy['type_of_json'] = 'attr'
-            attr_copy['node_id'] = node.id
+                attr_copy = copy.deepcopy(sample_dict_for_attrs_and_extras)
+                attr_copy['type_of_json'] = 'attr'
+                attr_copy['node_id'] = node.id
 
-            for key in attr_copy.keys():
-                DbAttributeFunctionality.set_value_for_node(node, key, attr_copy[key])
-            node.nodeversion = node.nodeversion + 1
+                # Setting the attributes as it used to be set (with the same methods)
+                for key in attr_copy.keys():
+                    DbAttributeFunctionality.set_value_for_node(node, key, attr_copy[key])
+                node.nodeversion = node.nodeversion + 1
 
-            extr_copy = copy.deepcopy(sample_dict_for_attrs_and_extras)
-            extr_copy['type_of_json'] = 'extr'
-            extr_copy['node_id'] = node.id
+                extr_copy = copy.deepcopy(sample_dict_for_attrs_and_extras)
+                extr_copy['type_of_json'] = 'extr'
+                extr_copy['node_id'] = node.id
 
-            for key in extr_copy.keys():
-                DbExtraFunctionality.set_value_for_node(node, key, extr_copy[key])
-            node.nodeversion = node.nodeversion + 1
+                # Setting the extras as it used to be set (with the same methods)
+                for key in extr_copy.keys():
+                    DbExtraFunctionality.set_value_for_node(node, key, extr_copy[key])
+                node.nodeversion = node.nodeversion + 1
 
-            self.nodes_to_verify[node.id] = dict()
-            self.nodes_to_verify[node.id]['attr'] = attr_copy
-            self.nodes_to_verify[node.id]['extr'] = extr_copy
-
-        print("Finished node creation")
+                self.nodes_to_verify[node.id] = dict()
+                self.nodes_to_verify[node.id]['attr'] = attr_copy
+                self.nodes_to_verify[node.id]['extr'] = extr_copy
 
     def test_text_field_to_json_field_migration(self):
         """Verify that the values in the text fields were maintained after migrating the field to JSONField."""
